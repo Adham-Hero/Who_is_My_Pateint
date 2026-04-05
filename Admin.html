@@ -70,7 +70,6 @@
         .btn-delete { color: #ff4d4d; cursor: pointer; transition: 0.3s; padding: 5px 10px; border-radius: 5px; margin-right: 10px; text-decoration: none; }
         .btn-delete:hover { background: rgba(255, 77, 77, 0.1); color: #ff0000; }
 
-        /* Modal Styling */
         .modal-content {
             background: rgba(11, 15, 20, 0.95);
             backdrop-filter: blur(25px);
@@ -145,8 +144,7 @@
                         <th>الإجراءات</th>
                     </tr>
                 </thead>
-                <tbody id="patientsTableBody">
-                    </tbody>
+                <tbody id="patientsTableBody"></tbody>
             </table>
         </div>
     </div>
@@ -173,7 +171,7 @@
                         <div class="data-box">
                             <h6 class="report-section-title">الحالة الطبية</h6>
                             <p>العمر: <span id="r-age" class="text-info"></span></p>
-                            <div id="r-surgeries" class="mb-2"></div>
+                            <div id="r-history" class="mb-2"></div>
                             <div id="r-meds"></div>
                         </div>
                     </div>
@@ -201,46 +199,69 @@
     animate();
 
     // --- 2. إدارة البيانات ---
-    const API_URL = '/api'; // الرابط النسبي للعمل على Vercel
+    // تأكد أن هذا الرابط مطابق لمسارات السيرفر
+    const API_URL = window.location.origin + '/api'; 
     const modal = new bootstrap.Modal(document.getElementById('reportModal'));
 
+    // دالة لجلب المرضى
     async function loadPatients() {
         try {
             const res = await fetch(`${API_URL}/patients`);
-            const json = await res.json();
+            const result = await res.json();
             const tbody = document.getElementById('patientsTableBody');
-            tbody.innerHTML = json.data.length ? '' : '<tr><td colspan="4" class="text-center">لا يوجد سجلات</td></tr>';
+            
+            if (!result.success || !result.data.length) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">لا توجد سجلات حالياً</td></tr>';
+                return;
+            }
 
-            json.data.forEach(p => {
-                // تحويل المريض لـ String آمن للاستخدام في الـ HTML
-                const pString = JSON.stringify(p).replace(/"/g, '&quot;');
+            tbody.innerHTML = '';
+            result.data.forEach(p => {
+                // نستخدم ID المريض بدلاً من تمرير الكائن بالكامل في الـ HTML لتجنب أخطاء Syntax
                 tbody.innerHTML += `
                     <tr>
                         <td>${p.name}</td>
                         <td><code>${p.nationalId}</code></td>
                         <td>${p.age} سنة</td>
                         <td>
-                            <button class="btn-view" onclick='viewReport(${pString})'>عرض</button>
+                            <button class="btn-view" onclick="fetchAndShow('${p.nationalId}')">عرض</button>
                             <span class="btn-delete" onclick="deletePatient('${p.nationalId}')">حذف</span>
                         </td>
                     </tr>`;
             });
-        } catch (e) { console.log("Load Error"); }
+        } catch (e) { 
+            console.error("Fetch Error:", e);
+        }
     }
 
-    function viewReport(p) {
-        document.getElementById('r-name').innerText = p.name;
-        document.getElementById('r-id').innerText = p.nationalId;
-        document.getElementById('r-phone').innerText = p.phone || 'غير مسجل';
-        document.getElementById('r-age').innerText = p.age + ' سنة';
-        
-        const sDiv = document.getElementById('r-surgeries');
-        sDiv.innerHTML = '<small class="text-white-50">العمليات:</small><br>';
-        p.medicalHistory.surgeries.forEach(s => s && (sDiv.innerHTML += `<span class="medical-badge">${s}</span>`));
-        
-        modal.show();
+    // دالة لجلب بيانات مريض واحد وعرضها
+    async function fetchAndShow(id) {
+        try {
+            const res = await fetch(`${API_URL}/patient/${id}`);
+            const result = await res.json();
+            if(result.success) {
+                const p = result.data;
+                document.getElementById('r-name').innerText = p.name;
+                document.getElementById('r-id').innerText = p.nationalId;
+                document.getElementById('r-phone').innerText = p.phone || 'غير مسجل';
+                document.getElementById('r-age').innerText = p.age + ' سنة';
+                
+                const hDiv = document.getElementById('r-history');
+                hDiv.innerHTML = '<small class="text-white-50">تاريخ العمليات والأمراض:</small><br>';
+                
+                const history = [...p.medicalHistory.surgeries, ...p.medicalHistory.chronicDiseases];
+                history.forEach(h => h && (hDiv.innerHTML += `<span class="medical-badge">${h}</span>`));
+                
+                const mDiv = document.getElementById('r-meds');
+                mDiv.innerHTML = '<small class="text-white-50">الأدوية:</small><br>';
+                p.medicalHistory.medications.forEach(m => m && (mDiv.innerHTML += `<span class="medical-badge border-warning text-warning">${m}</span>`));
+                
+                modal.show();
+            }
+        } catch (e) { alert("خطأ في جلب بيانات المريض"); }
     }
 
+    // إضافة مريض
     document.getElementById('addPatientForm').onsubmit = async (e) => {
         e.preventDefault();
         const btn = document.getElementById('submitBtn');
@@ -266,25 +287,36 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
-            if(res.ok) {
-                alert("✅ تم الحفظ");
+            const resData = await res.json();
+            if(resData.success) {
+                alert("✅ تم حفظ السجل بنجاح");
                 e.target.reset();
                 loadPatients();
             } else {
-                const err = await res.json();
-                alert("❌ خطأ: " + err.message);
+                alert("❌ فشل الحفظ: " + (resData.message || "خطأ غير معروف"));
             }
+        } catch(e) {
+            alert("❌ خطأ في الاتصال بالسيرفر");
         } finally { btn.disabled = false; }
     };
 
+    // حذف مريض
     async function deletePatient(id) {
-        if(confirm("هل أنت متأكد من حذف هذا الملف؟")) {
-            await fetch(`${API_URL}/patient/${id}`, { method: 'DELETE' });
-            loadPatients();
+        if(confirm("هل أنت متأكد من حذف هذا السجل نهائياً؟")) {
+            try {
+                const res = await fetch(`${API_URL}/patient/${id}`, { method: 'DELETE' });
+                const resData = await res.json();
+                if(resData.success) {
+                    loadPatients();
+                } else {
+                    alert("فشل الحذف");
+                }
+            } catch(e) { alert("خطأ في السيرفر"); }
         }
     }
 
-    loadPatients();
+    // بدء التحميل
+    window.onload = loadPatients;
 </script>
 </body>
 </html>
