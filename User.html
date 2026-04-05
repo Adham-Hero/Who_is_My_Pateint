@@ -3,41 +3,86 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Who is my patient</title>
+    <title>Who is my patient - البحث الرقمي</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
     <style>
-        /* تحسينات للغة العربية */
-        body {
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #020202;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* حاوية الـ 3D في الخلفية */
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        .ui-overlay {
+            position: relative;
+            z-index: 1;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .search-container {
+            background: rgba(11, 15, 20, 0.5);
+            backdrop-filter: blur(15px);
+            padding: 40px;
+            border-radius: 25px;
+            border: 1px solid rgba(13, 202, 240, 0.2);
+            max-width: 500px;
+            width: 95%;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+            transition: transform 0.1s ease-out;
+        }
+
+        .search-title {
+            font-weight: 800;
+            color: #0dcaf0;
+            text-shadow: 0 0 15px rgba(13, 202, 240, 0.4);
+        }
+
+        .form-control {
+            text-align: center;
+            letter-spacing: 2px;
+            background: rgba(0, 0, 0, 0.4) !important;
+            border: 1px solid #444 !important;
+            color: #fff !important;
+        }
+
+        .btn-custom {
+            background: #0dcaf0;
+            color: #000;
+            font-weight: bold;
+            border-radius: 0 10px 10px 0 !important;
+            border: none;
         }
 
         #error-popup {
             display: none; 
             position: fixed; 
             top: 20px; 
-            left: 20px; /* التنبيه يظهر في اليسار لأن الصفحة RTL */
+            left: 20px;
             z-index: 9999;
             min-width: 300px;
             text-align: right;
         }
 
-        .search-title {
-            font-weight: 800;
-            text-shadow: 0 0 15px rgba(13, 202, 240, 0.4);
-        }
-
-        .form-control {
-            text-align: center;
-            letter-spacing: 2px; /* لجعل الأرقام واضحة */
-        }
-
-        /* زر البحث بتنسيق متناسق مع النجوم */
-        .btn-custom {
-            background: #0dcaf0;
-            color: #000;
-            font-weight: bold;
-            border-radius: 0 5px 5px 0 !important; /* لضبط الحواف مع RTL */
+        .loading-spinner {
+            display: none;
+            color: #0dcaf0;
+            margin-top: 15px;
         }
     </style>
 </head>
@@ -46,29 +91,22 @@
 <div id="canvas-container"></div>
 
 <div id="error-popup" class="alert alert-warning alert-dismissible fade show shadow-lg" role="alert">
-    <strong id="error-title">تنبيه!</strong> 
-    <span id="error-message">يجب إدخال أرقام فقط ومكونة من 14 رقماً.</span>
+    <strong>تنبيه!</strong> 
+    <span id="error-message">يجب إدخال 14 رقماً صحيحاً.</span>
     <button type="button" class="btn-close" onclick="closeError()" aria-label="إغلاق" style="left: auto; right: 0;"></button>
 </div>
 
 <div class="ui-overlay">
     <div class="search-container text-center" id="tilt-container">
         <h2 class="search-title mb-4">قاعدة بيانات المرضى</h2>
-        <p class="text-white-50 mb-4">يرجى إدخال الرقم القومي المكون من 14 رقماً للوصول إلى السجلات الطبية.</p>
+        <p class="text-white-50 mb-4">يرجى إدخال الرقم القومي المكون من 14 رقماً.</p>
         
-        <div class="input-group input-group-lg mb-3" dir="ltr"> <button class="btn btn-custom px-4" type="button" onclick="validateSearch()">
-                بحث
-            </button>
-            <input type="text" 
-                   id="patientID" 
-                   class="form-control" 
-                   placeholder="مثال: 29501011234567" 
-                   aria-label="رقم المريض" 
-                   oninput="this.value = this.value.replace(/[^0-9]/g, '');" 
-                   maxlength="14">
+        <div class="input-group input-group-lg mb-3" dir="ltr">
+            <button class="btn btn-custom px-4" type="button" onclick="validateSearch()">بحث</button>
+            <input type="text" id="patientID" class="form-control" placeholder="29501011234567" maxlength="14" oninput="this.value = this.value.replace(/[^0-9]/g, '');">
         </div>
 
-        <div id="loading-spinner" class="text-info mt-2" style="display: none;">
+        <div id="loading-spinner" class="loading-spinner">
             <div class="spinner-border spinner-border-sm" role="status"></div>
             <span>جاري البحث في السجلات...</span>
         </div>
@@ -78,24 +116,18 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/fonts/FontLoader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/geometries/TextGeometry.js"></script>
-
 <script src="index.js"></script>
 
 <script>
-    // دالة إغلاق رسالة الخطأ
+    // إغلاق التنبيه
     function closeError() {
         document.getElementById('error-popup').style.display = 'none';
     }
 
-    // البحث عند الضغط على Enter
+    // البحث بـ Enter
     document.getElementById('patientID').addEventListener('keypress', function (e) {
-        if (e.key === 'Enter') {
-            validateSearch();
-        }
+        if (e.key === 'Enter') validateSearch();
     });
-
-    // ملاحظة: تأكد من تغيير النص في Three.js داخل ملف index.js 
-    // إذا كنت تريد أن يظهر النص الطائر باللغة العربية، ستحتاج لخط يدعم العربية في Three.js
 </script>
 
 </body>
