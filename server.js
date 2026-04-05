@@ -9,11 +9,11 @@ const app = express();
 app.use(cors()); 
 app.use(express.json()); 
 
-// خدمة الملفات الثابتة (ضروري لظهور الواجهة على Vercel)
-// يفترض أن ملفات HTML/CSS/JS موجودة في المجلد الرئيسي للمشروع
-app.use(express.static(path.join(__dirname, '/')));
+// خدمة الملفات الثابتة من المجلد الرئيسي (تم تعديل المسار ليكون أكثر دقة)
+app.use(express.static(path.join(__dirname)));
 
 // --- 1. الاتصال بـ MongoDB Atlas ---
+// ملاحظة: يُفضل مستقبلاً استخدام process.env.MONGODB_URI للأمان
 const dbURI = 'mongodb+srv://adham612199:A_h61219975@cluster0.ybubu9q.mongodb.net/HospitalDB?retryWrites=true&w=majority';
 
 mongoose.connect(dbURI)
@@ -46,9 +46,8 @@ const patientSchema = new mongoose.Schema({
         surgeries: { type: [String], default: [] },
         chronicDiseases: { type: [String], default: [] },
         medications: { type: [String], default: [] },
-        visitsCount: { type: Number, default: 0 }
-    },
-    profileUrl: String 
+        visitsCount: { type: Number, default: 1 }
+    }
 });
 const Patient = mongoose.model('Patient', patientSchema, 'patients');
 
@@ -80,11 +79,11 @@ app.post('/api/patients', async (req, res) => {
         await newPatient.save();
         res.status(201).json({ success: true, message: "تم إضافة المريض بنجاح" });
     } catch (err) {
-        res.status(400).json({ success: false, message: "فشل إضافة المريض، تأكد من الرقم القومي" });
+        res.status(400).json({ success: false, message: "فشل إضافة المريض، قد يكون الرقم القومي مسجلاً مسبقاً" });
     }
 });
 
-// جلب كل المرضى
+// جلب كل المرضى (لوحة التحكم)
 app.get('/api/patients', async (req, res) => {
     try {
         const patients = await Patient.find().sort({ _id: -1 });
@@ -94,7 +93,7 @@ app.get('/api/patients', async (req, res) => {
     }
 });
 
-// البحث عن مريض
+// البحث عن مريض بالرقم القومي
 app.get('/api/patient/:id', async (req, res) => {
     try {
         const patient = await Patient.findOne({ nationalId: req.params.id });
@@ -115,16 +114,19 @@ app.delete('/api/patient/:id', async (req, res) => {
         if (result) {
             res.json({ success: true, message: "تم حذف سجل المريض بنجاح" });
         } else {
-            res.status(404).json({ success: false, message: "المريض غير موجود بالفعل" });
+            res.status(404).json({ success: false, message: "المريض غير موجود" });
         }
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
     }
 });
 
-// --- التوجيه الشامل (Catch-all Route) ---
-// هذا السطر يضمن أنه عند طلب أي مسار غير موجود في الـ API، يتم إرسال صفحة index.html
+// --- التوجيه الشامل (Catch-all Route) المحسن لـ Vercel ---
 app.get('*', (req, res) => {
+    // إذا كان الطلب يبحث عن ملف (يحتوي على نقطة مثل .css) أو يبدأ بـ /api، لا ترسل index.html
+    if (req.path.includes('.') || req.path.startsWith('/api')) {
+        return res.status(404).send('Not Found');
+    }
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
@@ -145,11 +147,11 @@ async function createDefaultUsers() {
 // --- 5. تشغيل السيرفر وتصديره لـ Vercel ---
 const PORT = process.env.PORT || 3000;
 
-// ملاحظة: Vercel يستخدم module.exports لتشغيل السيرفر كدالة سحابية
 if (process.env.NODE_ENV !== 'production') {
     app.listen(PORT, () => {
         console.log(`🚀 Server running on http://localhost:${PORT}`);
     });
 }
 
+// تصدير التطبيق ليعمل كـ Serverless Function على Vercel
 module.exports = app;
