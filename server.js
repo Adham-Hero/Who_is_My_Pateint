@@ -9,11 +9,11 @@ const app = express();
 app.use(cors()); 
 app.use(express.json()); 
 
-// خدمة الملفات الثابتة من المجلد الرئيسي (تم تعديل المسار ليكون أكثر دقة)
+// 1. خدمة الملفات الثابتة (يجب أن تسبق المسارات الأخرى)
+// هذا السطر يسمح للمتصفح بالوصول لملفات CSS, JS, والصور تلقائياً
 app.use(express.static(path.join(__dirname)));
 
-// --- 1. الاتصال بـ MongoDB Atlas ---
-// ملاحظة: يُفضل مستقبلاً استخدام process.env.MONGODB_URI للأمان
+// --- 2. الاتصال بـ MongoDB Atlas ---
 const dbURI = 'mongodb+srv://adham612199:A_h61219975@cluster0.ybubu9q.mongodb.net/HospitalDB?retryWrites=true&w=majority';
 
 mongoose.connect(dbURI)
@@ -25,7 +25,7 @@ mongoose.connect(dbURI)
         console.error("❌ Connection error detail:", err.message);
     });
 
-// --- 2. تعريف الموديلات (Models) ---
+// --- 3. تعريف الموديلات (Models) ---
 
 const userSchema = new mongoose.Schema({
     username: { type: String, required: true, unique: true },
@@ -51,7 +51,7 @@ const patientSchema = new mongoose.Schema({
 });
 const Patient = mongoose.model('Patient', patientSchema, 'patients');
 
-// --- 3. المسارات (API Routes) ---
+// --- 4. المسارات (API Routes) ---
 
 // تسجيل الدخول
 app.post('/api/index', async (req, res) => {
@@ -83,7 +83,7 @@ app.post('/api/patients', async (req, res) => {
     }
 });
 
-// جلب كل المرضى (لوحة التحكم)
+// جلب كل المرضى
 app.get('/api/patients', async (req, res) => {
     try {
         const patients = await Patient.find().sort({ _id: -1 });
@@ -121,16 +121,22 @@ app.delete('/api/patient/:id', async (req, res) => {
     }
 });
 
-// --- التوجيه الشامل (Catch-all Route) المحسن لـ Vercel ---
+// --- 5. التوجيه الشامل (Routing) ---
+
+// مسارات صريحة للصفحات لضمان عملها على Vercel بدون خطأ 404
+app.get('/Admin', (req, res) => res.sendFile(path.join(__dirname, 'Admin.html')));
+app.get('/User', (req, res) => res.sendFile(path.join(__dirname, 'User.html')));
+
+// التوجيه الشامل لأي مسار آخر غير معروف
 app.get('*', (req, res) => {
-    // إذا كان الطلب يبحث عن ملف (يحتوي على نقطة مثل .css) أو يبدأ بـ /api، لا ترسل index.html
-    if (req.path.includes('.') || req.path.startsWith('/api')) {
+    // إذا كان الطلب يبحث عن ملف (يحتوي على نقطة مثل .css) لا ترسل index.html
+    if (req.path.includes('.')) {
         return res.status(404).send('Not Found');
     }
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// --- 4. وظيفة إنشاء مستخدمين افتراضيين ---
+// --- 6. وظيفة إنشاء مستخدمين افتراضيين ---
 async function createDefaultUsers() {
     try {
         const adminExists = await User.findOne({ username: 'admin' });
@@ -144,7 +150,7 @@ async function createDefaultUsers() {
     }
 }
 
-// --- 5. تشغيل السيرفر وتصديره لـ Vercel ---
+// --- 7. تشغيل السيرفر وتصديره ---
 const PORT = process.env.PORT || 3000;
 
 if (process.env.NODE_ENV !== 'production') {
@@ -153,5 +159,4 @@ if (process.env.NODE_ENV !== 'production') {
     });
 }
 
-// تصدير التطبيق ليعمل كـ Serverless Function على Vercel
 module.exports = app;
