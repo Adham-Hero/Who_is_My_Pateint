@@ -9,26 +9,24 @@ const app = express();
 app.use(cors()); 
 app.use(express.json()); 
 
-// خدمت ملفات الواجهة الأمامية من المجلد الرئيسي
+// خدمة ملفات الواجهة الأمامية (Frontend) من المجلد الرئيسي
 app.use(express.static(path.join(__dirname, '/')));
 
 // --- 1. الاتصال بـ MongoDB Atlas ---
 const dbURI = 'mongodb+srv://adham612199:A_h61219975@cluster0.ybubu9q.mongodb.net/HospitalDB?retryWrites=true&w=majority';
 
-// تحسين الاتصال لبيئة Serverless (إضافة خيارات الاستقرار)
-mongoose.connect(dbURI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-})
-.then(() => {
-    console.log("✅ Successfully connected to MongoDB Atlas!");
-    createDefaultUsers(); 
-})
-.catch(err => {
-    console.error("❌ Connection error:", err.message);
-});
+// خيارات الاتصال لضمان الاستقرار في بيئة المطور و Vercel
+mongoose.connect(dbURI)
+    .then(() => {
+        console.log("✅ Successfully connected to MongoDB Atlas!");
+        createDefaultUsers(); 
+    })
+    .catch(err => {
+        console.error("❌ MongoDB Connection Error:", err.message);
+    });
 
 // --- 2. تعريف الموديلات (Models) ---
+// استخدام mongoose.models لتجنب خطأ إعادة تعريف الموديل عند التحديث التلقائي (Hot Reload)
 const userSchema = new mongoose.Schema({
     username: { type: String, required: true, unique: true },
     password: { type: String, required: true },
@@ -53,38 +51,46 @@ const patientSchema = new mongoose.Schema({
 });
 const Patient = mongoose.models.Patient || mongoose.model('Patient', patientSchema, 'patients');
 
-// --- 3. مسارات تسجيل الدخول ---
+// --- 3. مسارات تسجيل الدخول (Authentication) ---
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
     try {
         const user = await User.findOne({ username, password });
         if (user) {
-            res.json({ success: true, role: user.role });
+            res.json({ 
+                success: true, 
+                role: user.role,
+                message: "تم تسجيل الدخول بنجاح" 
+            });
         } else {
-            res.status(401).json({ success: false, message: "بيانات الدخول خاطئة" });
+            res.status(401).json({ success: false, message: "اسم المستخدم أو كلمة المرور غير صحيحة" });
         }
     } catch (err) {
-        res.status(500).json({ success: false });
+        res.status(500).json({ success: false, message: "خطأ في السيرفر" });
     }
 });
 
-// --- 4. مسارات المرضى (محدثة لتتوافق مع لوحة التحكم) ---
+// --- 4. مسارات المرضى (Patients API) ---
+
+// جلب كل المرضى
+app.get('/api/patients', async (req, res) => {
+    try {
+        const patients = await Patient.find().sort({ _id: -1 });
+        res.json({ success: true, data: patients });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
 
 // جلب مريض واحد بالرقم القومي
 app.get('/api/patient/:id', async (req, res) => {
     try {
         const patient = await Patient.findOne({ nationalId: req.params.id });
         if (patient) res.json({ success: true, data: patient });
-        else res.status(404).json({ success: false, message: "غير موجود" });
-    } catch (err) { res.status(500).json({ success: false }); }
-});
-
-// جلب قائمة كل المرضى (مهم جداً للوحة التحكم)
-app.get('/api/patients', async (req, res) => {
-    try {
-        const patients = await Patient.find().sort({ _id: -1 });
-        res.json({ success: true, data: patients });
-    } catch (err) { res.status(500).json({ success: false }); }
+        else res.status(404).json({ success: false, message: "المريض غير موجود" });
+    } catch (err) {
+        res.status(500).json({ success: false, error: "خطأ في قاعدة البيانات" });
+    }
 });
 
 // إضافة مريض جديد
@@ -92,41 +98,52 @@ app.post('/api/patients', async (req, res) => {
     try {
         const newPatient = new Patient(req.body);
         await newPatient.save();
-        res.status(201).json({ success: true });
+        res.status(201).json({ success: true, message: "تمت الإضافة بنجاح" });
     } catch (err) {
-        res.status(400).json({ success: false, message: err.message });
+        res.status(400).json({ success: false, message: "فشل الإضافة: الرقم القومي مسجل مسبقاً" });
     }
 });
 
-// حذف مريض (مهم جداً للوحة التحكم)
+// حذف مريض
 app.delete('/api/patient/:id', async (req, res) => {
     try {
-        await Patient.findOneAndDelete({ nationalId: req.params.id });
-        res.json({ success: true, message: "تم الحذف" });
-    } catch (err) { res.status(500).json({ success: false }); }
+        const result = await Patient.findOneAndDelete({ nationalId: req.params.id });
+        if (result) res.json({ success: true, message: "تم الحذف بنجاح" });
+        else res.status(404).json({ success: false, message: "السجل غير موجود" });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
 });
 
-// --- 5. وظيفة إنشاء مستخدمين افتراضيين ---
+// --- 5. تهيئة المستخدمين الافتراضيين ---
 async function createDefaultUsers() {
     try {
         const adminExists = await User.findOne({ username: 'admin' });
         if (!adminExists) {
             await User.create({ username: 'admin', password: '123', role: 'admin' });
-            console.log("👥 Default admin created");
+            await User.create({ username: 'user1', password: '456', role: 'user' });
+            console.log("👥 Default Accounts Created: (admin/123) & (user1/456)");
         }
-    } catch (err) {}
+    } catch (err) {
+        console.error("❌ Error creating users:", err.message);
+    }
 }
 
-// --- 6. معالجة الصفحات (Frontend fallback) ---
-// هذا السطر يضمن أنه عند كتابة رابط الصفحة مباشرة، يتم توجيه المتصفح لملف الـ HTML الصحيح
+// --- 6. التعامل مع صفحات الـ Frontend ---
+// توجيه أي مسار غير معرف في الـ API إلى الصفحة الرئيسية (index.html)
 app.get('*', (req, res) => {
+    // تأكد من أن ملف index.html موجود في نفس المجلد
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// التشغيل المحلي
+// --- 7. تشغيل السيرفر ---
 const PORT = process.env.PORT || 3000;
-if (process.env.NODE_ENV !== 'production') {
-    app.listen(PORT, () => console.log(`🚀 Server on http://localhost:${PORT}`));
+
+// التحقق مما إذا كان الملف يعمل محلياً أو كـ Function (لـ Vercel)
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`🚀 Server is flying on http://localhost:${PORT}`);
+    });
 }
 
 module.exports = app;
