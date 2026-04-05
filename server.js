@@ -1,20 +1,25 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const path = require('path'); // ضروري لخدمة ملفات HTML/CSS/JS
 
 const app = express();
 
 // --- الإعدادات الأساسية ---
 app.use(cors()); 
-app.use(express.json()); // ضروري لاستقبال بيانات JSON
+app.use(express.json()); 
+
+// خدمة الملفات الثابتة (لضمان ظهور صفحة الـ HTML عند فتح الرابط)
+app.use(express.static(path.join(__dirname, '/')));
 
 // --- 1. الاتصال بـ MongoDB Atlas ---
 const dbURI = 'mongodb+srv://adham612199:A_h61219975@cluster0.ybubu9q.mongodb.net/HospitalDB?retryWrites=true&w=majority';
 
+// تحسين الاتصال ليتناسب مع بيئة Vercel
 mongoose.connect(dbURI)
     .then(() => {
         console.log("✅ Successfully connected to MongoDB Atlas!");
-        createDefaultUsers(); // إنشاء المستخدمين الافتراضيين عند نجاح الاتصال
+        createDefaultUsers(); 
     })
     .catch(err => {
         console.error("❌ Connection error detail:", err.message);
@@ -22,7 +27,6 @@ mongoose.connect(dbURI)
 
 // --- 2. تعريف الموديلات (Models) ---
 
-// أ. موديل المستخدمين (Login System)
 const userSchema = new mongoose.Schema({
     username: { type: String, required: true, unique: true },
     password: { type: String, required: true },
@@ -30,7 +34,6 @@ const userSchema = new mongoose.Schema({
 });
 const User = mongoose.model('User', userSchema);
 
-// ب. موديل المريض (Patient System)
 const patientSchema = new mongoose.Schema({
     nationalId: { type: String, required: true, unique: true },
     name: { type: String, required: true },
@@ -49,14 +52,14 @@ const patientSchema = new mongoose.Schema({
 });
 const Patient = mongoose.model('Patient', patientSchema, 'patients');
 
-// --- 3. مسارات تسجيل الدخول (Authentication) ---
+// --- 3. المسارات (Routes) ---
 
+// مسار تسجيل الدخول
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
     try {
         const user = await User.findOne({ username, password });
         if (user) {
-            console.log(`🔑 Login Success: ${username} (${user.role})`);
             res.json({ 
                 success: true, 
                 role: user.role, 
@@ -70,27 +73,18 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// --- 4. مسارات المرضى (Patients Routes) ---
-
-// مسار تجريبي للتأكد من عمل السيرفر
-app.get('/', (req, res) => {
-    res.send('🚀 Hospital Management API is running...');
-});
-
-// إضافة مريض جديد (Create)
+// إضافة مريض
 app.post('/api/patients', async (req, res) => {
     try {
         const newPatient = new Patient(req.body);
         await newPatient.save();
-        console.log("✅ New Patient Added:", newPatient.name);
         res.status(201).json({ success: true, message: "تم إضافة المريض بنجاح" });
     } catch (err) {
-        console.error("❌ Add Error:", err.message);
-        res.status(400).json({ success: false, message: "فشل إضافة المريض، تأكد من عدم تكرار الرقم القومي" });
+        res.status(400).json({ success: false, message: "فشل إضافة المريض، تأكد من الرقم القومي" });
     }
 });
 
-// جلب كل المرضى (Read All)
+// جلب كل المرضى
 app.get('/api/patients', async (req, res) => {
     try {
         const patients = await Patient.find().sort({ _id: -1 });
@@ -100,11 +94,10 @@ app.get('/api/patients', async (req, res) => {
     }
 });
 
-// البحث عن مريض محدد بالرقم القومي (Read One)
+// البحث عن مريض محدد
 app.get('/api/patient/:id', async (req, res) => {
-    const patientId = req.params.id;
     try {
-        const patient = await Patient.findOne({ nationalId: patientId });
+        const patient = await Patient.findOne({ nationalId: req.params.id });
         if (patient) {
             res.json({ success: true, data: patient });
         } else {
@@ -115,12 +108,11 @@ app.get('/api/patient/:id', async (req, res) => {
     }
 });
 
-// حذف مريض (Delete)
+// حذف مريض
 app.delete('/api/patient/:id', async (req, res) => {
     try {
         const result = await Patient.findOneAndDelete({ nationalId: req.params.id });
         if (result) {
-            console.log("🗑️ Patient Deleted:", req.params.id);
             res.json({ success: true, message: "تم حذف سجل المريض بنجاح" });
         } else {
             res.status(404).json({ success: false, message: "المريض غير موجود بالفعل" });
@@ -130,22 +122,31 @@ app.delete('/api/patient/:id', async (req, res) => {
     }
 });
 
-// --- 5. وظيفة إنشاء مستخدمين افتراضيين (Admin & User) ---
+// توجيه أي طلب آخر لصفحة index.html (ضروري لـ Vercel)
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// --- 4. وظيفة إنشاء مستخدمين افتراضيين ---
 async function createDefaultUsers() {
     try {
         const adminExists = await User.findOne({ username: 'admin' });
         if (!adminExists) {
             await User.create({ username: 'admin', password: '123', role: 'admin' });
             await User.create({ username: 'user1', password: '456', role: 'user' });
-            console.log("👥 Default users created (admin/123 & user1/456)");
+            console.log("👥 Default users created");
         }
     } catch (err) {
-        console.error("❌ Error creating default users:", err.message);
+        console.error("❌ Error creating users:", err.message);
     }
 }
 
-// --- 6. تشغيل السيرفر ---
-const PORT = 3000;
-app.listen(PORT, () => {
-    console.log(`🚀 Server is flying on http://localhost:${PORT}`);
-});
+// --- 5. تشغيل السيرفر وتصديره ---
+const PORT = process.env.PORT || 3000;
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(PORT, () => {
+        console.log(`🚀 Server is flying on http://localhost:${PORT}`);
+    });
+}
+
+module.exports = app; // ضروري جداً لـ Vercel
