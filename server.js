@@ -1,7 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const path = require('path'); // ضروري لخدمة ملفات HTML/CSS/JS
+const path = require('path');
 
 const app = express();
 
@@ -9,13 +9,13 @@ const app = express();
 app.use(cors()); 
 app.use(express.json()); 
 
-// خدمة الملفات الثابتة (لضمان ظهور صفحة الـ HTML عند فتح الرابط)
+// خدمة الملفات الثابتة (ضروري لظهور الواجهة على Vercel)
+// يفترض أن ملفات HTML/CSS/JS موجودة في المجلد الرئيسي للمشروع
 app.use(express.static(path.join(__dirname, '/')));
 
 // --- 1. الاتصال بـ MongoDB Atlas ---
 const dbURI = 'mongodb+srv://adham612199:A_h61219975@cluster0.ybubu9q.mongodb.net/HospitalDB?retryWrites=true&w=majority';
 
-// تحسين الاتصال ليتناسب مع بيئة Vercel
 mongoose.connect(dbURI)
     .then(() => {
         console.log("✅ Successfully connected to MongoDB Atlas!");
@@ -52,9 +52,9 @@ const patientSchema = new mongoose.Schema({
 });
 const Patient = mongoose.model('Patient', patientSchema, 'patients');
 
-// --- 3. المسارات (Routes) ---
+// --- 3. المسارات (API Routes) ---
 
-// مسار تسجيل الدخول
+// تسجيل الدخول
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
     try {
@@ -94,7 +94,7 @@ app.get('/api/patients', async (req, res) => {
     }
 });
 
-// البحث عن مريض محدد
+// البحث عن مريض
 app.get('/api/patient/:id', async (req, res) => {
     try {
         const patient = await Patient.findOne({ nationalId: req.params.id });
@@ -122,7 +122,8 @@ app.delete('/api/patient/:id', async (req, res) => {
     }
 });
 
-// توجيه أي طلب آخر لصفحة index.html (ضروري لـ Vercel)
+// --- التوجيه الشامل (Catch-all Route) ---
+// هذا السطر يضمن أنه عند طلب أي مسار غير موجود في الـ API، يتم إرسال صفحة index.html
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
@@ -141,12 +142,14 @@ async function createDefaultUsers() {
     }
 }
 
-// --- 5. تشغيل السيرفر وتصديره ---
+// --- 5. تشغيل السيرفر وتصديره لـ Vercel ---
 const PORT = process.env.PORT || 3000;
+
+// ملاحظة: Vercel يستخدم module.exports لتشغيل السيرفر كدالة سحابية
 if (process.env.NODE_ENV !== 'production') {
     app.listen(PORT, () => {
-        console.log(`🚀 Server is flying on https://who-is-my-pateint.vercel.app`);
+        console.log(`🚀 Server running on http://localhost:${PORT}`);
     });
 }
 
-module.exports = app; // ضروري جداً لـ Vercel
+module.exports = app;
