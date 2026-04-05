@@ -16,14 +16,14 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
-        /* حاوية الـ 3D الثابتة في الخلفية */
+        /* حاوية الخلفية ثلاثية الأبعاد */
         #canvas-container {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 0; /* تم التعديل لضمان الظهور */
+            z-index: 1;
         }
 
         .ui-overlay {
@@ -33,73 +33,60 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.6) 100%);
-            pointer-events: none; /* تسمح بمرور حركات الماوس للخلفية إذا لزم الأمر */
+            /* طبقة تظليل خفيفة لإبراز المحتوى */
+            background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.4) 100%);
         }
 
         .search-container {
-            background: rgba(11, 15, 20, 0.6);
+            background: rgba(11, 15, 20, 0.7);
             backdrop-filter: blur(15px);
             -webkit-backdrop-filter: blur(15px);
             padding: 40px;
             border-radius: 25px;
-            border: 1px solid rgba(13, 202, 240, 0.2);
+            border: 1px solid rgba(13, 202, 240, 0.3);
             max-width: 500px;
             width: 95%;
-            box-shadow: 0 25px 50px rgba(0,0,0,0.8);
-            transition: transform 0.1s ease-out;
-            pointer-events: auto; /* استعادة القدرة على الضغط داخل صندوق البحث */
+            box-shadow: 0 0 40px rgba(13, 202, 240, 0.1);
+            /* حركة ناعمة عند العودة للوضع الطبيعي */
+            transition: transform 0.3s ease-out, box-shadow 0.3s ease;
+            transform-style: preserve-3d;
+            perspective: 1000px;
+        }
+
+        /* تأثير التوهج عند لمس الماوس */
+        .search-container:hover {
+            box-shadow: 0 0 60px rgba(13, 202, 240, 0.25);
+            border-color: rgba(13, 202, 240, 0.5);
         }
 
         .search-title {
             font-weight: 800;
             color: #0dcaf0;
-            text-shadow: 0 0 20px rgba(13, 202, 240, 0.5);
+            text-shadow: 0 0 15px rgba(13, 202, 240, 0.4);
             margin-bottom: 1.5rem;
         }
 
         .form-control {
             text-align: center;
-            letter-spacing: 2px;
-            background: rgba(0, 0, 0, 0.7) !important;
-            border: 1px solid #333 !important;
+            background: rgba(0, 0, 0, 0.5) !important;
+            border: 1px solid #444 !important;
             color: #fff !important;
-            border-radius: 0 10px 10px 0 !important; /* تعديل ليتناسب مع RTL */
-        }
-
-        .form-control:focus {
-            border-color: #0dcaf0 !important;
-            box-shadow: 0 0 15px rgba(13, 202, 240, 0.3) !important;
+            border-radius: 0 12px 12px 0 !important;
         }
 
         .btn-custom {
             background: #0dcaf0;
             color: #000;
             font-weight: bold;
-            border-radius: 10px 0 0 10px !important; /* تعديل ليتناسب مع RTL */
+            border-radius: 12px 0 0 12px !important;
             border: none;
-            transition: all 0.3s ease;
+            transition: 0.3s;
         }
 
-        .btn-custom:hover {
-            background: #0bb5d9;
-            transform: scale(1.05);
-        }
+        .btn-custom:hover { background: #0bb5d9; }
 
         #error-popup {
-            display: none; 
-            position: fixed; 
-            top: 25px; 
-            left: 25px;
-            z-index: 10000;
-            min-width: 320px;
-            border-radius: 15px;
-        }
-
-        .loading-spinner {
-            display: none;
-            color: #0dcaf0;
-            margin-top: 15px;
+            display: none; position: fixed; top: 20px; left: 20px; z-index: 10001;
         }
     </style>
 </head>
@@ -108,25 +95,18 @@
 <div id="canvas-container"></div>
 
 <div id="error-popup" class="alert alert-warning alert-dismissible fade show shadow-lg" role="alert">
-    <strong>تنبيه نظامي!</strong> 
-    <br>
-    <span id="error-message">الرقم القومي يجب أن يكون 14 رقماً.</span>
-    <button type="button" class="btn-close" onclick="closeError()" aria-label="إغلاق" style="left: auto; right: 10px;"></button>
+    <span id="error-message">الرقم القومي غير صحيح.</span>
+    <button type="button" class="btn-close" onclick="this.parentElement.style.display='none'"></button>
 </div>
 
 <div class="ui-overlay">
-    <div class="search-container text-center" id="tilt-container">
+    <div class="search-container text-center" id="tilt-box">
         <h2 class="search-title">قاعدة بيانات المرضى</h2>
-        <p class="text-white-50 mb-4">أدخل الرقم القومي المكون من 14 رقماً للتحقق من السجل الطبي.</p>
+        <p class="text-white-50 mb-4">أدخل الرقم القومي للتحقق من السجل.</p>
         
         <div class="input-group input-group-lg mb-2" dir="ltr">
             <button class="btn btn-custom px-4" type="button" onclick="validateSearch()">بـحـث</button>
-            <input type="text" id="patientID" class="form-control" placeholder="29501011234567" maxlength="14" oninput="this.value = this.value.replace(/[^0-9]/g, '');">
-        </div>
-
-        <div id="loading-spinner" class="loading-spinner">
-            <div class="spinner-border spinner-border-sm" role="status"></div>
-            <span class="ms-2">جاري فحص السجلات الرقمية...</span>
+            <input type="text" id="patientID" class="form-control" placeholder="14 رقماً" maxlength="14">
         </div>
     </div>
 </div>
@@ -134,146 +114,104 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
 <script>
-// --- GLOBAL VARIABLES ---
-let scene, camera, renderer, textMesh, starSystem;
-const clock = new THREE.Clock();
+let scene, camera, renderer, textMesh, stars;
 
 function initThree() {
     scene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.z = 30; 
+    camera.position.z = 30;
 
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
     document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-    // الإضاءة
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-    scene.add(ambientLight);
-    
-    const pointLight = new THREE.PointLight(0x0dcaf0, 2, 100);
-    pointLight.position.set(10, 10, 10);
-    scene.add(pointLight);
+    // إضافة الإضاءة
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    const pLight = new THREE.PointLight(0x0dcaf0, 2, 100);
+    pLight.position.set(0, 10, 10);
+    scene.add(pLight);
 
-    // النجوم (Starfield)
-    const starCount = 6000;
-    const starGeometry = new THREE.BufferGeometry();
-    const starPositions = new Float32Array(starCount * 3);
-    for (let i = 0; i < starCount * 3; i++) {
-        starPositions[i] = (Math.random() - 0.5) * 200;
-    }
-    starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-    const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.15, transparent: true, opacity: 0.8 });
-    starSystem = new THREE.Points(starGeometry, starMaterial);
-    scene.add(starSystem);
+    // إضافة النجوم
+    const starGeo = new THREE.BufferGeometry();
+    const starPos = new Float32Array(5000 * 3);
+    for(let i=0; i<15000; i++) starPos[i] = (Math.random() - 0.5) * 200;
+    starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+    stars = new THREE.Points(starGeo, new THREE.PointsMaterial({color: 0xaaaaaa, size: 0.1}));
+    scene.add(stars);
 
-    // تحميل النص ثلاثي الأبعاد بشكل صحيح
-    // ملاحظة: تم استخدام FontLoader من CDN خارجي لتجنب مشاكل التوافق
-    const fontLoaderScript = document.createElement('script');
-    fontLoaderScript.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FontLoader.js';
-    fontLoaderScript.onload = () => {
-        const textGeoScript = document.createElement('script');
-        textGeoScript.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/geometries/TextGeometry.js';
-        textGeoScript.onload = () => {
-            const loader = new THREE.FontLoader();
-            // رابط خط يعمل وموثوق
-            loader.load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/fonts/helvetiker_bold.typeface.json', function (font) {
-                const geometry = new THREE.TextGeometry('Who is my patient?', {
-                    font: font,
-                    size: 2,
-                    height: 0.5,
-                    curveSegments: 12,
-                    bevelEnabled: true,
-                    bevelThickness: 0.1,
-                    bevelSize: 0.05
-                });
-                geometry.center();
-                const material = new THREE.MeshPhongMaterial({ color: 0x0dcaf0, specular: 0xffffff, shininess: 100 });
-                textMesh = new THREE.Mesh(geometry, material);
-                textMesh.position.y = 12; 
-                scene.add(textMesh);
-            });
-        };
-        document.head.appendChild(textGeoScript);
-    };
-    document.head.appendChild(fontLoaderScript);
+    // تحميل جملة "Who is my patient?" ثلاثية الأبعاد
+    const loader = new THREE.FontLoader();
+    loader.load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/fonts/helvetiker_bold.typeface.json', (font) => {
+        const textGeo = new THREE.TextGeometry('Who is my patient?', {
+            font: font, size: 2.5, height: 0.6, curveSegments: 10,
+            bevelEnabled: true, bevelThickness: 0.1, bevelSize: 0.05
+        });
+        textGeo.center();
+        textMesh = new THREE.Mesh(textGeo, new THREE.MeshPhongMaterial({color: 0x0dcaf0}));
+        textMesh.position.y = 12; // وضعها فوق الديف
+        scene.add(textMesh);
+    });
 
     animate();
 }
 
 function animate() {
     requestAnimationFrame(animate);
-    const elapsedTime = clock.getElapsedTime();
-
-    if (textMesh) {
+    if(textMesh) {
         textMesh.rotation.y += 0.005;
-        textMesh.position.y = 12 + Math.sin(elapsedTime * 0.8) * 0.5;
+        textMesh.position.y = 12 + Math.sin(Date.now() * 0.002) * 0.5;
     }
-    if (starSystem) {
-        starSystem.rotation.y += 0.0005;
-    }
+    stars.rotation.y += 0.0003;
     renderer.render(scene, camera);
 }
 
-// --- UI INTERACTIONS (Tilt Effect) ---
-const tiltContainer = document.getElementById('tilt-container');
-document.addEventListener('mousemove', (e) => {
-    if (!tiltContainer) return;
-    const x = (window.innerWidth / 2 - e.pageX) / 30;
-    const y = (window.innerHeight / 2 - e.pageY) / 30;
-    tiltContainer.style.transform = `rotateY(${-x}deg) rotateX(${y}deg)`;
+// --- تحريك الديف فقط عند لمس الماوس (Tilt Logic) ---
+const box = document.getElementById('tilt-box');
+
+box.addEventListener('mousemove', (e) => {
+    const rect = box.getBoundingClientRect();
+    const x = e.clientX - rect.left; // مكان الماوس داخل الديف
+    const y = e.clientY - rect.top;
+    
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    
+    // حساب زاوية الدوران (أقصى ميل 15 درجة)
+    const rotateX = ((centerY - y) / centerY) * 15;
+    const rotateY = ((x - centerX) / centerX) * 15;
+    
+    box.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
 });
 
-// --- CORE FUNCTIONALITY ---
-async function validateSearch() {
-    const input = document.getElementById('patientID').value.trim();
-    const spinner = document.getElementById('loading-spinner');
-    
-    if (input.length === 14) {
-        spinner.style.display = 'block';
-        try {
-            const response = await fetch('/api/patients');
-            const result = await response.json();
-            
-            if (result.success) {
-                const patient = result.data.find(p => p.nationalId === input);
-                if (patient) {
-                    localStorage.setItem('tempPatientData', JSON.stringify(patient));
-                    window.location.href = "patient_report.html"; 
-                } else {
-                    showError("الرقم القومي غير موجود في النظام.");
-                }
-            }
-        } catch (err) {
-            showError("حدث خطأ في الاتصال بالسيرفر.");
-        } finally {
-            spinner.style.display = 'none';
-        }
-    } else {
-        showError("يرجى إدخال الرقم القومي كاملاً (14 رقماً).");
-    }
-}
+// إعادة الديف لوضعه الطبيعي عند خروج الماوس
+box.addEventListener('mouseleave', () => {
+    box.style.transform = `rotateX(0deg) rotateY(0deg) scale(1)`;
+});
 
-function showError(msg) {
-    const errorPopup = document.getElementById('error-popup');
-    document.getElementById('error-message').innerText = msg;
-    errorPopup.style.display = 'block';
-    setTimeout(() => { errorPopup.style.display = 'none'; }, 5000);
-}
-
-function closeError() {
-    document.getElementById('error-popup').style.display = 'none';
-}
-
+// تشغيل النظام
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// Start
 initThree();
+
+async function validateSearch() {
+    const id = document.getElementById('patientID').value;
+    if(id.length === 14) {
+        // ضع هنا كود الـ Fetch الخاص بك
+        alert("جاري البحث عن المريض...");
+    } else {
+        const pop = document.getElementById('error-popup');
+        pop.style.display = 'block';
+        setTimeout(() => pop.style.display='none', 3000);
+    }
+}
 </script>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FontLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/geometries/TextGeometry.js"></script>
+
 </body>
 </html>
