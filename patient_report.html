@@ -3,92 +3,126 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>الملف الطبي الشامل</title>
+    <title>الملف الطبي الشامل | النظام الرقمي</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        /* التنسيقات الأساسية */
+        :root {
+            --neon-blue: #0dcaf0;
+            --glass-bg: rgba(11, 15, 20, 0.75);
+        }
+
         body { 
             margin: 0; 
             overflow-x: hidden; 
             background: #05080a; 
             color: #fff; 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
         }
 
-        /* حاوية Three.js خلف كل شيء */
         #bg-canvas {
             position: fixed;
             top: 0;
             left: 0;
-            z-index: -1; /* خلف المحتوى */
+            z-index: -1;
             width: 100%;
             height: 100%;
         }
 
-        /* كارت التقرير الشفاف زجاجياً (Glassmorphism) */
+        /* تحسين كارت التقرير */
         .report-card { 
-            background: rgba(11, 15, 20, 0.7); /* شفافية عالية */
-            backdrop-filter: blur(15px); /* تعتيم الخلفية */
-            border-radius: 25px; 
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 30px; 
             border: 1px solid rgba(13, 202, 240, 0.2); 
-            padding: 40px; 
-            margin: 50px auto; 
-            box-shadow: 0 0 40px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(13, 202, 240, 0.05);
-            max-width: 1000px;
-            position: relative;
+            padding: 50px; 
+            margin: 40px auto; 
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+            max-width: 1100px;
+            transition: transform 0.3s ease;
         }
 
         .section-title { 
-            border-right: 5px solid #0dcaf0; 
+            border-right: 4px solid var(--neon-blue); 
             padding-right: 15px; 
-            margin-bottom: 25px; 
-            color: #0dcaf0; 
-            text-shadow: 0 0 10px rgba(13, 202, 240, 0.5);
+            margin-bottom: 30px; 
+            color: var(--neon-blue); 
+            font-weight: 700;
+            text-transform: uppercase;
         }
 
-        .data-label { color: #8899a6; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; }
-        .data-value { font-size: 1.2rem; color: #e1e8ed; font-weight: 500; display: block; margin-top: 5px; }
-        
-        .medical-badge { 
-            background: rgba(13, 202, 240, 0.1); 
-            color: #0dcaf0; 
-            border: 1px solid rgba(13, 202, 240, 0.3); 
-            padding: 6px 18px; 
-            border-radius: 50px; 
-            display: inline-block; 
-            margin: 5px; 
-            font-size: 0.9rem;
-            transition: 0.3s;
+        .data-label { 
+            color: #6c757d; 
+            font-size: 0.75rem; 
+            font-weight: bold;
+            display: block;
+            margin-bottom: 2px;
         }
-        .medical-badge:hover { background: rgba(13, 202, 240, 0.2); transform: scale(1.05); }
+        
+        .data-value { 
+            font-size: 1.15rem; 
+            color: #f8f9fa; 
+            word-break: break-word;
+        }
+        
+        /* البادجات الطبية */
+        .medical-badge { 
+            background: rgba(13, 202, 240, 0.08); 
+            color: var(--neon-blue); 
+            border: 1px solid rgba(13, 202, 240, 0.2); 
+            padding: 5px 15px; 
+            border-radius: 12px; 
+            display: inline-block; 
+            margin: 4px; 
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+        .medical-badge:hover { 
+            background: var(--neon-blue); 
+            color: #000;
+            transform: translateY(-2px);
+        }
 
         .med-list-item { 
-            background: rgba(255,255,255,0.03); 
-            margin-bottom: 8px; 
-            padding: 12px; 
-            border-radius: 10px; 
-            border-right: 3px solid #0dcaf0; 
+            background: rgba(255,255,255,0.04); 
+            margin-bottom: 10px; 
+            padding: 15px; 
+            border-radius: 15px; 
+            border-right: 4px solid var(--neon-blue); 
         }
 
         .btn-custom {
             background: transparent;
-            border: 1px solid #0dcaf0;
-            color: #0dcaf0;
-            padding: 10px 30px;
-            border-radius: 50px;
+            border: 1px solid var(--neon-blue);
+            color: var(--neon-blue);
+            padding: 12px 35px;
+            border-radius: 15px;
+            font-weight: bold;
             transition: 0.4s;
-            text-decoration: none;
         }
         .btn-custom:hover {
-            background: #0dcaf0;
+            background: var(--neon-blue);
             color: #000;
-            box-shadow: 0 0 20px rgba(13, 202, 240, 0.6);
+            box-shadow: 0 0 25px rgba(13, 202, 240, 0.4);
         }
 
-        /* لإخفاء العناصر عند الطباعة */
+        /* تنسيقات الطباعة الاحترافية */
         @media print {
+            body { background: white !important; color: black !important; }
             #bg-canvas, .no-print { display: none !important; }
-            .report-card { background: white !important; color: black !important; border: 1px solid #ccc !important; }
+            .report-card { 
+                background: white !important; 
+                color: black !important; 
+                border: none !important; 
+                box-shadow: none !important; 
+                backdrop-filter: none !important;
+                margin: 0;
+                padding: 20px;
+            }
+            .section-title { color: #000 !important; border-right-color: #000 !important; }
+            .data-value { color: #000 !important; }
+            .medical-badge { border: 1px solid #000 !important; color: #000 !important; }
+            .med-list-item { border: 1px solid #eee !important; background: none !important; color: #000 !important; }
         }
     </style>
 </head>
@@ -96,61 +130,199 @@
 
     <canvas id="bg-canvas"></canvas>
 
-    <div class="container pb-5">
-        <div class="report-card">
-            <div class="d-flex justify-content-between align-items-start mb-5">
+    <div class="container">
+        <div class="report-card" id="main-card">
+            <div class="d-flex justify-content-between align-items-center mb-5 flex-wrap">
                 <div>
-                    <h1 class="fw-bold text-info" style="letter-spacing: -1px;">الملف الطبي الرقمي <small class="fs-6 text-white-50 fw-light">v1.0</small></h1>
-                    <p class="text-white-50">نظام المزامنة البيومترية - سجلات المريض الأمنة</p>
+                    <h1 class="fw-bold text-info mb-1">الملف الطبي الشامل</h1>
+                    <p class="text-white-50 mb-0">نظام تحليل البيانات البيومترية المتطور</p>
                 </div>
-                <div class="text-end">
-                    <div id="report-date" class="badge bg-dark border border-secondary p-2"></div>
+                <div class="text-md-end mt-3 mt-md-0">
+                    <div id="report-date" class="badge bg-dark border border-secondary p-2 fw-light"></div>
                 </div>
             </div>
 
-            <div class="row mb-5">
-                <div class="col-12"><h4 class="section-title">المعلومات الشخصية</h4></div>
-                <div class="col-md-4 mb-4"><span class="data-label">الاسم الكامل</span><span class="data-value" id="p-name">---</span></div>
-                <div class="col-md-4 mb-4"><span class="data-label">الهوية الوطنية</span><span class="data-value" id="p-id">---</span></div>
-                <div class="col-md-4 mb-4"><span class="data-label">العمر البيولوجي</span><span class="data-value" id="p-age">---</span></div>
-                <div class="col-md-4"><span class="data-label">قناة التواصل</span><span class="data-value" id="p-phone">---</span></div>
-                <div class="col-md-8"><span class="data-label">الموقع الجغرافي</span><span class="data-value" id="p-address">---</span></div>
+            <div class="row mb-5 gy-4">
+                <div class="col-12"><h4 class="section-title">بيانات الهوية</h4></div>
+                <div class="col-md-4 col-sm-6">
+                    <span class="data-label">الاسم الكامل</span>
+                    <span class="data-value" id="p-name">جاري التحميل...</span>
+                </div>
+                <div class="col-md-4 col-sm-6">
+                    <span class="data-label">الرقم القومي</span>
+                    <span class="data-value" id="p-id">---</span>
+                </div>
+                <div class="col-md-4 col-sm-6">
+                    <span class="data-label">العمر</span>
+                    <span class="data-value" id="p-age">---</span>
+                </div>
+                <div class="col-md-4 col-sm-6">
+                    <span class="data-label">الهاتف</span>
+                    <span class="data-value" id="p-phone" dir="ltr">---</span>
+                </div>
+                <div class="col-md-8">
+                    <span class="data-label">العنوان المسجل</span>
+                    <span class="data-value" id="p-address">---</span>
+                </div>
             </div>
 
-            <div class="row mb-5">
-                <div class="col-md-7">
-                    <h4 class="section-title">التاريخ الطبي والجراحي</h4>
-                    <div id="p-surgeries" class="mb-4">---</div>
-                    <div id="p-chronic">---</div>
+            <div class="row mb-5 gy-4">
+                <div class="col-lg-7">
+                    <h4 class="section-title">التاريخ المرضي والجراحي</h4>
+                    <div class="mb-4">
+                        <p class="text-white-50 small mb-2">العمليات الجراحية السابقة:</p>
+                        <div id="p-surgeries">---</div>
+                    </div>
+                    <div>
+                        <p class="text-white-50 small mb-2">الأمراض المزمنة:</p>
+                        <div id="p-chronic">---</div>
+                    </div>
                 </div>
-                <div class="col-md-5">
-                    <h4 class="section-title">البروتوكول العلاجي</h4>
+                <div class="col-lg-5">
+                    <h4 class="section-title">الأدوية الحالية</h4>
                     <div id="p-meds">---</div>
                 </div>
             </div>
 
-            <div class="row align-items-center">
+            <div class="row align-items-center gy-4">
                 <div class="col-md-8">
-                    <h4 class="section-title">تحليل العائلة</h4>
-                    <p id="p-family-history" class="text-white-50 lh-lg">---</p>
-                    <p>الأفراد المرتبطين بالسجل: <span id="p-family-count" class="text-info fw-bold">0</span></p>
+                    <h4 class="section-title">الوراثة وتاريخ العائلة</h4>
+                    <p id="p-family-history" class="text-white-50 lh-lg" style="text-align: justify;">---</p>
+                    <div class="mt-3">
+                        <span class="badge rounded-pill bg-info text-dark px-3">أفراد العائلة المرتبطين: <span id="p-family-count">0</span></span>
+                    </div>
                 </div>
-                <div class="col-md-4 text-center">
-                    <div style="border: 1px solid rgba(13, 202, 240, 0.3); padding: 20px; border-radius: 20px; background: rgba(0,0,0,0.3);">
-                        <span class="data-label">مؤشر الزيارات</span>
+                <div class="col-md-4">
+                    <div class="text-center p-4" style="border: 1px solid rgba(13, 202, 240, 0.2); border-radius: 25px; background: rgba(0,0,0,0.2);">
+                        <span class="data-label mb-2">إجمالي الزيارات</span>
                         <div class="display-4 fw-bold text-info" id="p-visits">0</div>
+                        <p class="small text-white-50 mt-2">سجل الفحص الدوري</p>
                     </div>
                 </div>
             </div>
 
-            <div class="mt-5 text-center no-print">
-                <button class="btn btn-custom me-2" onclick="window.print()">توليد نسخة PDF</button>
-                <a href="User.html" class="btn btn-outline-secondary rounded-pill px-4" style="color: #ccc; border-color: #444;">إغلاق السجل</a>
+            <div class="mt-5 pt-4 text-center border-top border-secondary no-print">
+                <button class="btn btn-custom me-2" onclick="window.print()">
+                    <i class="bi bi-file-pdf"></i> حفظ كـ PDF
+                </button>
+                <a href="User.html" class="btn btn-link text-white-50 text-decoration-none">إغلاق السجل الآمن</a>
             </div>
         </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="patient_report.js"></script>
+
+    <script>
+        // --- محرك الخلفية Three.js ---
+        const initBackground = () => {
+            const canvas = document.querySelector('#bg-canvas');
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+            
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            const particlesGeometry = new THREE.BufferGeometry();
+            const count = 2000;
+            const positions = new Float32Array(count * 3);
+
+            for(let i = 0; i < count * 3; i++) {
+                positions[i] = (Math.random() - 0.5) * 60;
+            }
+            particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+            const particlesMaterial = new THREE.PointsMaterial({
+                size: 0.04,
+                color: 0x0dcaf0,
+                transparent: true,
+                opacity: 0.5,
+                blending: THREE.AdditiveBlending
+            });
+
+            const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
+            scene.add(particlesMesh);
+
+            camera.position.z = 20;
+
+            let mouseX = 0, mouseY = 0;
+            document.addEventListener('mousemove', (e) => {
+                mouseX = (e.clientX / window.innerWidth) - 0.5;
+                mouseY = (e.clientY / window.innerHeight) - 0.5;
+            });
+
+            const animate = () => {
+                requestAnimationFrame(animate);
+                particlesMesh.rotation.y += 0.0008;
+                
+                // تنعيم حركة الكاميرا (Easing)
+                camera.position.x += (mouseX * 8 - camera.position.x) * 0.03;
+                camera.position.y += (-mouseY * 8 - camera.position.y) * 0.03;
+                camera.lookAt(scene.position);
+
+                renderer.render(scene, camera);
+            };
+            animate();
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        };
+
+        // --- معالجة البيانات ---
+        const loadPatientData = () => {
+            const data = JSON.parse(localStorage.getItem('tempPatientData'));
+
+            if (!data) {
+                window.location.href = "User.html";
+                return;
+            }
+
+            // تعبئة البيانات النصية
+            const fields = {
+                'p-name': data.name,
+                'p-id': data.nationalId,
+                'p-age': `${data.age} عام`,
+                'p-phone': data.phone,
+                'p-address': data.address,
+                'p-family-count': data.familyCount,
+                'p-family-history': data.familyHistory,
+                'p-visits': data.medicalHistory.visitsCount
+            };
+
+            Object.keys(fields).forEach(id => {
+                const el = document.getElementById(id);
+                if(el) el.innerText = fields[id] || 'غير متوفر';
+            });
+
+            // تعبئة العمليات
+            const surgContainer = document.getElementById('p-surgeries');
+            surgContainer.innerHTML = data.medicalHistory.surgeries.length 
+                ? data.medicalHistory.surgeries.map(s => `<span class="medical-badge">${s}</span>`).join('')
+                : '<span class="text-white-50 small">لا يوجد عمليات مسجلة</span>';
+
+            // تعبئة الأمراض المزمنة
+            const chronicContainer = document.getElementById('p-chronic');
+            chronicContainer.innerHTML = data.medicalHistory.chronicDiseases.length 
+                ? data.medicalHistory.chronicDiseases.map(d => `<span class="medical-badge" style="color:#ffc107; border-color:rgba(255,193,7,0.3)">${d}</span>`).join('')
+                : '<span class="text-white-50 small">لا يوجد أمراض مزمنة مسجلة</span>';
+
+            // تعبئة الأدوية
+            const medsContainer = document.getElementById('p-meds');
+            medsContainer.innerHTML = data.medicalHistory.medications.length 
+                ? data.medicalHistory.medications.map(m => `<div class="med-list-item">💊 ${m}</div>`).join('')
+                : '<div class="text-white-50 small p-3">لا توجد أدوية حالية</div>';
+
+            document.getElementById('report-date').innerText = `تاريخ الاستخراج: ${new Date().toLocaleDateString('ar-EG')}`;
+        };
+
+        // التشغيل عند التحميل
+        window.onload = () => {
+            initBackground();
+            loadPatientData();
+        };
+    </script>
 </body>
 </html>
