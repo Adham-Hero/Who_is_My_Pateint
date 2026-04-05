@@ -14,7 +14,8 @@ function initThree() {
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
-    document.getElementById('canvas-container').appendChild(renderer.domElement);
+    const container = document.getElementById('canvas-container');
+    if (container) container.appendChild(renderer.domElement);
 
     // 3. Lighting
     const keyLight = new THREE.DirectionalLight(0xffffff, 1);
@@ -30,6 +31,7 @@ function initThree() {
 
     // 4. 3D Text Creation
     const loader = new THREE.FontLoader();
+    // استخدام رابط مباشر وموثوق للخط
     loader.load('https://threejs.org/examples/fonts/helvetiker_bold.typeface.json', function (font) {
         const geometry = new THREE.TextGeometry('Who is my patient?', {
             font: font,
@@ -51,7 +53,7 @@ function initThree() {
         });
         
         textMesh = new THREE.Mesh(geometry, material);
-        textMesh.position.y = 10; 
+        textMesh.position.y = 8; // ضبط الارتفاع ليكون مناسباً للرؤية
         scene.add(textMesh);
     });
 
@@ -85,7 +87,7 @@ function animate() {
     // Text Floating Animation
     if (textMesh) {
         textMesh.rotation.y += 0.003;
-        textMesh.position.y = 10 + Math.sin(elapsedTime * 0.5) * 1;
+        textMesh.position.y = 8 + Math.sin(elapsedTime * 0.5) * 1;
     }
 
     // Starfield Subtle Drift
@@ -125,63 +127,65 @@ if (tiltContainer) {
 
 // --- SEARCH VALIDATION & API CALL ---
 async function validateSearch() {
-    const input = document.getElementById('patientID').value.trim();
+    const inputField = document.getElementById('patientID');
+    const input = inputField.value.trim();
+    const loadingSpinner = document.getElementById('loading-spinner');
     
     if (input.length === 14 && /^\d+$/.test(input)) {
         try {
-            // تأكد أن الرابط هو نفس بورت السيرفر (3000)
-            const response = await fetch(`http:///who-is-my-pateint.vercel.app/api/patient/${input}`);
+            if(loadingSpinner) loadingSpinner.style.display = 'block';
+            
+            // استخدام المسار النسبي ليعمل على Vercel بدون مشاكل
+            const response = await fetch(`/api/patient/${input}`);
             
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.message || "المريض غير مسجل");
+                throw new Error(errorData.message || "المريض غير مسجل في النظام");
             }
 
             const result = await response.json();
             
             if (result.success) {
-                // تخزين البيانات كاملة
+                // تخزين البيانات في LocalStorage للانتقال لصفحة التقرير
                 localStorage.setItem('tempPatientData', JSON.stringify(result.data));
-                // الانتقال للصفحة التي أرسلت كودها أنت
                 window.location.href = "patient_report.html"; 
             }
         } catch (err) {
-            // استدعاء دالة إظهار الخطأ الموجودة في index.html
-            showError(err.message === "Failed to fetch" ? "السيرفر غير متصل!" : err.message);
+            showError(err.message === "Failed to fetch" ? "تعذر الاتصال بالسيرفر!" : err.message);
+        } finally {
+            if(loadingSpinner) loadingSpinner.style.display = 'none';
         }
     } else {
-        showError("يرجى إدخال 14 رقماً صحيحاً.");
+        showError("يرجى إدخال رقم قومي صحيح مكون من 14 رقماً.");
     }
 }
 
+// دالة موحدة لإظهار الخطأ
 function showError(msg) {
     const errorPopup = document.getElementById('error-popup');
     const errorText = document.getElementById('error-message');
     if (errorPopup && errorText) {
         errorText.innerText = msg;
         errorPopup.style.display = 'block';
+        // إغلاق تلقائي بعد 5 ثواني
+        setTimeout(closeError, 5000);
     }
 }
 
-function showError(msg) {
-    const errorPopup = document.getElementById('error-popup');
-    const errorText = document.getElementById('error-message');
-    if (errorText) errorText.innerText = msg;
-    errorPopup.style.display = 'block';
-}
-
 function closeError() {
-    document.getElementById('error-popup').style.display = 'none';
+    const errorPopup = document.getElementById('error-popup');
+    if (errorPopup) errorPopup.style.display = 'none';
 }
 
 // --- EVENT LISTENERS ---
 window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    if (camera && renderer) {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
 });
 
-// Start Everything
+// تشغيل النظام
 initThree();
 animate();
-
