@@ -22,16 +22,14 @@
             text-shadow: 0 0 15px rgba(13, 202, 240, 0.4);
             color: #fff;
         }
+        /* تعديل الحواف لتناسب اتجاه RTL مع Input Group */
         .form-control {
             text-align: center;
             letter-spacing: 2px;
-            border-radius: 5px 0 0 5px !important; /* لضبط الحواف مع LTR group */
+            border-radius: 0 5px 5px 0 !important; 
         }
         .btn-custom {
-            background: #0dcaf0;
-            color: #000;
-            font-weight: bold;
-            border-radius: 0 5px 5px 0 !important;
+            border-radius: 5px 0 0 5px !important;
         }
     </style>
 </head>
@@ -68,36 +66,6 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script>
-    // --- دالة البحث والتحقق ---
-    function validateSearch() {
-        const idInput = document.getElementById('patientID').value;
-        const errorPopup = document.getElementById('error-popup');
-        const spinner = document.getElementById('loading-spinner');
-
-        if (idInput.length !== 14) {
-            errorPopup.style.display = 'block';
-            setTimeout(closeError, 4000);
-            return;
-        }
-
-        // إظهار التحميل والتحويل لصفحة التقرير
-        spinner.style.display = 'block';
-        
-        // ملاحظة: سنقوم بتمرير الرقم القومي في الرابط لصفحة التقرير
-        setTimeout(() => {
-            window.location.href = `report.html?id=${idInput}`;
-        }, 1000);
-    }
-
-    function closeError() {
-        document.getElementById('error-popup').style.display = 'none';
-    }
-
-    // تشغيل البحث عند ضغط Enter
-    document.getElementById('patientID').addEventListener('keypress', function (e) {
-        if (e.key === 'Enter') validateSearch();
-    });
-</script>
-<script src="index.js"></script> </body>
+<script src="index.js"></script> 
+</body>
 </html>
