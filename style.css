@@ -1,91 +1,103 @@
-body, html { 
-    margin: 0; 
-    padding: 0; 
-    overflow: hidden; 
-    background: #050505; /* Deep space black */
-    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
-    color: #eee;
-    /* Necessary for 3D UI effect */
-    perspective: 1000px;
-}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>من هو مريضي - الاستعلام</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; }
+        #error-popup {
+            display: none; 
+            position: fixed; 
+            top: 20px; 
+            left: 20px; 
+            z-index: 9999;
+            min-width: 300px;
+            text-align: right;
+        }
+        .search-title {
+            font-weight: 800;
+            text-shadow: 0 0 15px rgba(13, 202, 240, 0.4);
+            color: #fff;
+        }
+        .form-control {
+            text-align: center;
+            letter-spacing: 2px;
+            border-radius: 5px 0 0 5px !important; /* لضبط الحواف مع LTR group */
+        }
+        .btn-custom {
+            background: #0dcaf0;
+            color: #000;
+            font-weight: bold;
+            border-radius: 0 5px 5px 0 !important;
+        }
+    </style>
+</head>
+<body>
 
-#canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+<div id="canvas-container"></div>
 
-.ui-overlay {
-    position: relative;
-    z-index: 10;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    pointer-events: none; /* Let mouse events pass to canvas by default */
-}
+<div id="error-popup" class="alert alert-warning alert-dismissible fade show shadow-lg" role="alert">
+    <strong id="error-title">تنبيه!</strong> 
+    <span id="error-message">يجب إدخال 14 رقماً صحيحاً.</span>
+    <button type="button" class="btn-close" onclick="closeError()" style="position:absolute; left:10px; right:auto;"></button>
+</div>
 
-.search-container {
-    background: rgba(255, 255, 255, 0.07); /* More subtle for space theme */
-    backdrop-filter: blur(25px); /* Stronger Glass effect */
-    -webkit-backdrop-filter: blur(25px);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    padding: 3rem;
-    border-radius: 25px;
-    box-shadow: 0 15px 50px 0 rgba(0, 0, 0, 0.5);
-    pointer-events: all; /* Re-enable interaction for the form */
-    width: 90%;
-    max-width: 550px;
-    
-    /* 3D Transform settings */
-    transition: transform 0.1s ease-out, box-shadow 0.2s ease;
-    transform-style: preserve-3d; 
-    will-change: transform;
-}
+<div class="ui-overlay">
+    <div class="search-container text-center" id="tilt-container">
+        <h2 class="search-title mb-4">قاعدة بيانات المرضى</h2>
+        <p class="text-white-50 mb-4">يرجى إدخال الرقم القومي المكون من 14 رقماً للوصول إلى السجلات.</p>
+        
+        <div class="input-group input-group-lg mb-3" dir="ltr"> 
+            <button class="btn btn-custom px-4" type="button" onclick="validateSearch()">بحث</button>
+            <input type="text" 
+                   id="patientID" 
+                   class="form-control" 
+                   placeholder="29501011234567" 
+                   oninput="this.value = this.value.replace(/[^0-9]/g, '');" 
+                   maxlength="14">
+        </div>
 
-/* Add depth to elements inside the 3D div */
-.search-container > * {
-    transform: translateZ(20px);
-}
+        <div id="loading-spinner" class="text-info mt-2" style="display: none;">
+            <div class="spinner-border spinner-border-sm" role="status"></div>
+            <span>جاري فحص السجلات الطبية...</span>
+        </div>
+    </div>
+</div>
 
-h2.search-title {
-    color: #fff;
-    font-weight: 300;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+    // --- دالة البحث والتحقق ---
+    function validateSearch() {
+        const idInput = document.getElementById('patientID').value;
+        const errorPopup = document.getElementById('error-popup');
+        const spinner = document.getElementById('loading-spinner');
 
-.form-control {
-    background-color: rgba(255, 255, 255, 0.9);
-    border: none;
-    color: #333;
-}
-.form-control:focus {
-    box-shadow: 0 0 0 0.3rem rgba(13, 202, 240, 0.3);
-    background-color: #fff;
-}
+        if (idInput.length !== 14) {
+            errorPopup.style.display = 'block';
+            setTimeout(closeError, 4000);
+            return;
+        }
 
-.btn-custom {
-    background: linear-gradient(45deg, #0dcaf0, #0099cc); /* Gradient cyan */
-    color: #fff;
-    border: none;
-    transition: all 0.3s ease;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
+        // إظهار التحميل والتحويل لصفحة التقرير
+        spinner.style.display = 'block';
+        
+        // ملاحظة: سنقوم بتمرير الرقم القومي في الرابط لصفحة التقرير
+        setTimeout(() => {
+            window.location.href = `report.html?id=${idInput}`;
+        }, 1000);
+    }
 
-.btn-custom:hover {
-    background: linear-gradient(45deg, #0099cc, #0dcaf0);
-    transform: translateY(-2px) translateZ(10px); /* Add depth on hover */
-    box-shadow: 0 5px 15px rgba(13, 202, 240, 0.4);
-}
+    function closeError() {
+        document.getElementById('error-popup').style.display = 'none';
+    }
 
-/* Error Popup Style - Stays flat on top */
-#error-popup {
-    display: none;
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 100;
-    min-width: 320px;
-    border-radius: 12px;
-    transform: translateZ(100px); /* Keep it above everything */
-}
+    // تشغيل البحث عند ضغط Enter
+    document.getElementById('patientID').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') validateSearch();
+    });
+</script>
+<script src="index.js"></script> </body>
+</html>
