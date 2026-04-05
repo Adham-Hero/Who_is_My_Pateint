@@ -56,6 +56,7 @@
             transition: 0.3s;
             text-decoration: none;
             display: inline-block;
+            cursor: pointer;
         }
         .btn-view:hover { background: #0dcaf0; color: #000; box-shadow: 0 0 10px rgba(13, 202, 240, 0.5); }
 
@@ -163,7 +164,9 @@
                         <th>الإجراءات</th>
                     </tr>
                 </thead>
-                <tbody id="patientsTableBody"></tbody>
+                <tbody id="patientsTableBody">
+                    <tr><td colspan="5" class="text-center text-muted">جارٍ تحميل البيانات...</td></tr>
+                </tbody>
             </table>
         </div>
     </div>
@@ -225,73 +228,77 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
 <script>
-    // --- 1. الرابط الديناميكي للـ API ليعمل على المتصفح تلقائياً ---
-    const API_URL = window.location.origin + '/api';
+    // --- 1. إعدادات الـ API ---
+    // نستخدم مسار نسبي ليعمل بشكل صحيح مع Vercel rewrites
+    const API_URL = '/api'; 
     const reportModal = new bootstrap.Modal(document.getElementById('reportModal'));
 
-    // --- 2. كود الخلفية THREE.JS ---
+    // --- 2. خلفية النجوم (Three.js) ---
     let scene, camera, renderer, stars;
-
     function initStars() {
         scene = new THREE.Scene();
         camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('bg-canvas'), antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
         
         const starGeometry = new THREE.BufferGeometry();
-        const starCount = 5000;
+        const starCount = 4000;
         const posArray = new Float32Array(starCount * 3);
-
-        for(let i = 0; i < starCount * 3; i++) {
-            posArray[i] = (Math.random() - 0.5) * 10;
-        }
-
+        for(let i = 0; i < starCount * 3; i++) posArray[i] = (Math.random() - 0.5) * 10;
         starGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-        const starMaterial = new THREE.PointsMaterial({ size: 0.005, color: 0x0dcaf0, transparent: true, opacity: 0.8 });
+        const starMaterial = new THREE.PointsMaterial({ size: 0.005, color: 0x0dcaf0 });
         stars = new THREE.Points(starGeometry, starMaterial);
         scene.add(stars);
         camera.position.z = 2;
 
-        function animateStars() {
-            requestAnimationFrame(animateStars);
-            stars.rotation.y += 0.0005;
+        function animate() {
+            requestAnimationFrame(animate);
+            stars.rotation.y += 0.0007;
             renderer.render(scene, camera);
         }
-        animateStars();
+        animate();
     }
-
     initStars();
 
-    // --- 3. إدارة البيانات وجلب السجلات من السيرفر ---
+    // --- 3. وظائف جلب وعرض البيانات ---
     async function loadPatients() {
+        const tbody = document.getElementById('patientsTableBody');
         try {
             const res = await fetch(`${API_URL}/patients`);
-            if (!res.ok) throw new Error('فشل جلب البيانات');
+            if (!res.ok) throw new Error('فشل في الاتصال بالسيرفر');
+            
             const result = await res.json();
-            const tbody = document.getElementById('patientsTableBody');
-            tbody.innerHTML = '';
+            
+            if (!result.success || !result.data || result.data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">لا توجد سجلات حالياً</td></tr>';
+                return;
+            }
 
+            tbody.innerHTML = '';
             result.data.forEach(p => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>
                         <div class="fw-bold">${p.name}</div>
-                        <small class="text-white-50">${p.address || 'لا يوجد عنوان'}</small>
+                        <small class="text-white-50">${p.address || 'بدون عنوان'}</small>
                     </td>
                     <td><code>${p.nationalId}</code></td>
                     <td>${p.phone || '---'}</td>
                     <td>${p.age} سنة</td>
                     <td>
-                        <button class="btn-view" id="view-${p.nationalId}">👁️ استعراض البيانات</button>
+                        <button class="btn-view" data-id="${p.nationalId}">👁️ استعراض</button>
                         <span class="btn-delete" onclick="deletePatient('${p.nationalId}')">🗑️ حذف</span>
                     </td>
                 `;
                 tbody.appendChild(tr);
-                // ربط حدث الضغط للعرض لتجنب مشاكل JSON.stringify
-                document.getElementById(`view-${p.nationalId}`).onclick = () => viewPatientReport(p);
+                
+                // ربط حدث الضغط
+                tr.querySelector('.btn-view').onclick = () => viewPatientReport(p);
             });
-        } catch (e) { console.error("Error loading:", e); }
+        } catch (e) {
+            console.error(e);
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">⚠️ خطأ في جلب البيانات من السيرفر</td></tr>';
+        }
     }
 
     function viewPatientReport(p) {
@@ -304,22 +311,20 @@
 
         const surgContainer = document.getElementById('r-surgeries');
         const surgeries = p.medicalHistory?.surgeries || [];
-        surgContainer.innerHTML = surgeries.length > 0 && surgeries[0] !== "" 
+        surgContainer.innerHTML = (surgeries.length > 0 && surgeries[0] !== "") 
             ? surgeries.map(s => `<span class="medical-badge">${s}</span>`).join('') 
-            : '<span class="text-white-50 small">لا يوجد سجل عمليات</span>';
+            : '<span class="text-white-50 small">لا توجد عمليات مسجلة</span>';
 
         const medsContainer = document.getElementById('r-meds');
-        const medications = p.medicalHistory?.medications || [];
-        medsContainer.innerHTML = medications.length > 0 && medications[0] !== "" 
-            ? medications.join(' ، ') 
-            : 'لا يوجد أدوية مسجلة.';
+        const meds = p.medicalHistory?.medications || [];
+        medsContainer.innerHTML = (meds.length > 0 && meds[0] !== "") ? meds.join(' ، ') : 'لا توجد أدوية مسجلة.';
 
         reportModal.show();
     }
 
+    // --- 4. معالجة النموذج (Add Patient) ---
     document.getElementById('addPatientForm').onsubmit = async (e) => {
         e.preventDefault();
-        
         const patientData = {
             name: document.getElementById('name').value,
             nationalId: document.getElementById('nationalId').value,
@@ -342,34 +347,35 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(patientData)
             });
-
             if (res.ok) {
-                alert('✅ تم حفظ السجل بنجاح!');
-                loadPatients();
+                alert('✅ تم الحفظ بنجاح');
                 e.target.reset();
+                loadPatients();
             } else {
                 const err = await res.json();
                 alert('❌ خطأ: ' + (err.message || 'فشل الحفظ'));
             }
-        } catch (err) { alert('❌ فشل الاتصال بالسيرفر'); }
+        } catch (err) { alert('❌ عطل في السيرفر'); }
     };
 
     async function deletePatient(id) {
-        if (confirm('⚠️ هل أنت متأكد من حذف هذا السجل نهائياً؟')) {
+        if (confirm('هل أنت متأكد من الحذف؟')) {
             try {
-                await fetch(`${API_URL}/patient/${id}`, { method: 'DELETE' });
-                loadPatients();
+                const res = await fetch(`${API_URL}/patient/${id}`, { method: 'DELETE' });
+                if (res.ok) loadPatients();
             } catch (e) { alert('❌ فشل الحذف'); }
         }
     }
 
-    // جلب البيانات عند فتح الصفحة
-    loadPatients();
+    // تشغيل عند التحميل
+    window.onload = loadPatients;
 
     window.addEventListener('resize', () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
+        if(camera && renderer) {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
     });
 </script>
 </body>
