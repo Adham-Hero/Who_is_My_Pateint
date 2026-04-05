@@ -1,4 +1,59 @@
-// معالجة تسجيل الدخول
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>تسجيل الدخول - النظام الطبي</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #05080a; color: #fff; font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; align-items: center; justify-content: center; margin: 0; overflow: hidden; }
+        #bg-canvas { position: fixed; top: 0; left: 0; z-index: -1; width: 100%; height: 100%; }
+        
+        .login-card {
+            background: rgba(11, 15, 20, 0.8);
+            backdrop-filter: blur(15px);
+            border-radius: 25px;
+            padding: 40px;
+            border: 1px solid rgba(13, 202, 240, 0.2);
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            text-align: center;
+        }
+        .form-control { background: rgba(0,0,0,0.4); border: 1px solid #444; color: #fff; border-radius: 12px; padding: 12px; margin-bottom: 20px; }
+        .form-control:focus { background: rgba(0,0,0,0.6); color: #fff; border-color: #0dcaf0; box-shadow: 0 0 15px rgba(13, 202, 240, 0.3); }
+        .btn-login { background: #0dcaf0; border: none; font-weight: bold; width: 100%; padding: 12px; border-radius: 12px; transition: 0.3s; color: #000; }
+        .btn-login:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(13, 202, 240, 0.4); }
+    </style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+
+<div class="login-card">
+    <h2 class="text-info mb-4">🔐 تسجيل الدخول</h2>
+    <form id="loginForm">
+        <input type="text" id="username" class="form-control" placeholder="اسم المستخدم" required>
+        <input type="password" id="password" class="form-control" placeholder="كلمة المرور" required>
+        <button type="submit" class="btn-login">دخول النظام</button>
+    </form>
+    <div id="message" class="mt-3 small text-danger"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+    // كود الخلفية (النجوم) لتوحيد الهوية البصرية
+    let scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+    let renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('bg-canvas'), alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    let starGeo = new THREE.BufferGeometry(), posArr = new Float32Array(5000 * 3);
+    for(let i=0; i<15000; i++) posArr[i] = (Math.random() - 0.5) * 10;
+    starGeo.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
+    let stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ size: 0.005, color: 0x0dcaf0 }));
+    scene.add(stars); camera.position.z = 2;
+    function animate() { requestAnimationFrame(animate); stars.rotation.y += 0.001; renderer.render(scene, camera); }
+    animate();
+
+    // معالجة تسجيل الدخول
     document.getElementById('loginForm').onsubmit = async (e) => {
         e.preventDefault();
         const username = document.getElementById('username').value;
@@ -6,20 +61,15 @@
         const message = document.getElementById('message');
 
         try {
-            // ملاحظة: قمنا بتغيير الرابط ليعمل على Vercel تلقائياً
-            const res = await fetch('/api/login', {
+            const res = await fetch('http://who-is-my-pateint.vercel.app/api/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, password })
             });
 
-            // تحويل الرد إلى JSON
             const result = await res.json();
 
-            if (res.ok && result.success) {
-                // تخزين اسم المستخدم والدور في المتصفح لاستخدامهما في الصفحات الأخرى
-                localStorage.setItem('userRole', result.role);
-                
+            if (res.ok) {
                 // التوجيه بناءً على الدور (Role) القادم من السيرفر
                 if (result.role === 'admin') {
                     window.location.href = 'admin.html';
@@ -27,11 +77,12 @@
                     window.location.href = 'user.html';
                 }
             } else {
-                // عرض رسالة الخطأ القادمة من السيرفر
-                message.innerText = result.message || 'اسم المستخدم أو كلمة المرور غير صحيحة';
+                message.innerText = result.message || 'خطأ في بيانات الدخول';
             }
         } catch (err) {
-            console.error("Login Error:", err);
-            message.innerText = 'تعذر الاتصال بالسيرفر. تأكد من رفع الملفات بشكل صحيح.';
+            message.innerText = 'تعذر الاتصال بالسيرفر';
         }
     };
+</script>
+</body>
+</html>
