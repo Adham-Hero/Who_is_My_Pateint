@@ -3,9 +3,8 @@ let scene, camera, renderer, textMesh, starSystem;
 const clock = new THREE.Clock();
 
 function initThree() {
-    // 1. Scene & Camera Setup
+    // 1. Scene Setup
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x020202);
     
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.z = 25; 
@@ -14,15 +13,16 @@ function initThree() {
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
-    document.getElementById('canvas-container').appendChild(renderer.domElement);
+    const container = document.getElementById('canvas-container');
+    if (container) container.appendChild(renderer.domElement);
 
     // 3. Lighting
     const keyLight = new THREE.DirectionalLight(0xffffff, 1);
     keyLight.position.set(5, 5, 15);
     scene.add(keyLight);
 
-    const fillLight = new THREE.AmbientLight(0xffffff, 0.4);
-    scene.add(fillLight);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    scene.add(ambientLight);
     
     const pointLight = new THREE.PointLight(0x0dcaf0, 1.8, 100);
     pointLight.position.set(-15, -10, 5);
@@ -43,7 +43,6 @@ function initThree() {
         });
         
         geometry.center();
-        
         const material = new THREE.MeshPhongMaterial({ 
             color: 0xffffff, 
             specular: 0x0dcaf0,
@@ -59,11 +58,9 @@ function initThree() {
     const starCount = 12000;
     const starGeometry = new THREE.BufferGeometry();
     const starPositions = new Float32Array(starCount * 3);
-
     for (let i = 0; i < starCount * 3; i++) {
         starPositions[i] = (Math.random() - 0.5) * 250;
     }
-
     starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
 
     const starMaterial = new THREE.PointsMaterial({
@@ -82,13 +79,11 @@ function animate() {
     requestAnimationFrame(animate);
     const elapsedTime = clock.getElapsedTime();
 
-    // Text Floating Animation
     if (textMesh) {
         textMesh.rotation.y += 0.003;
         textMesh.position.y = 10 + Math.sin(elapsedTime * 0.5) * 1;
     }
 
-    // Starfield Subtle Drift
     if (starSystem) {
         starSystem.rotation.y += 0.0004;
         starSystem.rotation.x += 0.0001;
@@ -99,55 +94,50 @@ function animate() {
 
 // --- UI INTERACTION: TILT EFFECT ---
 const tiltContainer = document.getElementById('tilt-container');
-
 if (tiltContainer) {
     tiltContainer.addEventListener('mousemove', (e) => {
         const rect = tiltContainer.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-        
         const centerX = rect.width / 2;
         const centerY = rect.height / 2;
-        
         const maxTilt = 12; 
         const rotateX = ((centerY - y) / centerY) * maxTilt;
         const rotateY = ((x - centerX) / centerX) * maxTilt;
         
         tiltContainer.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
-        tiltContainer.style.boxShadow = `${-rotateY * 1.5}px ${rotateX * 1.5}px 60px rgba(0, 0, 0, 0.7)`;
     });
 
     tiltContainer.addEventListener('mouseleave', () => {
         tiltContainer.style.transform = 'rotateX(0deg) rotateY(0deg)';
-        tiltContainer.style.boxShadow = '0 15px 50px rgba(0, 0, 0, 0.5)';
     });
 }
 
 // --- SEARCH VALIDATION & API CALL ---
 async function validateSearch() {
     const input = document.getElementById('patientID').value.trim();
+    const spinner = document.getElementById('loading-spinner');
     
     if (input.length === 14 && /^\d+$/.test(input)) {
+        if(spinner) spinner.style.display = 'block';
         try {
-            // تأكد أن الرابط هو نفس بورت السيرفر (3000)
-            const response = await fetch(`/api/patient/${input}`);
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || "المريض غير مسجل");
-            }
-
+            // المسار النسبي ليعمل على Vercel
+            const response = await fetch(`/api/patients`);
             const result = await response.json();
             
             if (result.success) {
-                // تخزين البيانات كاملة
-                localStorage.setItem('tempPatientData', JSON.stringify(result.data));
-                // الانتقال للصفحة التي أرسلت كودها أنت
-                window.location.href = "patient_report.html"; 
+                const patient = result.data.find(p => p.nationalId === input);
+                if (patient) {
+                    localStorage.setItem('tempPatientData', JSON.stringify(patient));
+                    window.location.href = "patient_report.html"; 
+                } else {
+                    showError("هذا الرقم غير مسجل في النظام.");
+                }
             }
         } catch (err) {
-            // استدعاء دالة إظهار الخطأ الموجودة في index.html
-            showError(err.message === "Failed to fetch" ? "السيرفر غير متصل!" : err.message);
+            showError("حدث خطأ في الاتصال بالسيرفر.");
+        } finally {
+            if(spinner) spinner.style.display = 'none';
         }
     } else {
         showError("يرجى إدخال 14 رقماً صحيحاً.");
@@ -160,28 +150,19 @@ function showError(msg) {
     if (errorPopup && errorText) {
         errorText.innerText = msg;
         errorPopup.style.display = 'block';
+        setTimeout(() => { errorPopup.style.display = 'none'; }, 4000);
     }
-}
-
-function showError(msg) {
-    const errorPopup = document.getElementById('error-popup');
-    const errorText = document.getElementById('error-message');
-    if (errorText) errorText.innerText = msg;
-    errorPopup.style.display = 'block';
-}
-
-function closeError() {
-    document.getElementById('error-popup').style.display = 'none';
 }
 
 // --- EVENT LISTENERS ---
 window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    if (camera && renderer) {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
 });
 
-// Start Everything
+// تشغيل النظام
 initThree();
 animate();
-
