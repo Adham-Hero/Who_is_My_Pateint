@@ -11,13 +11,10 @@ function initThree() {
     camera.position.z = 25; 
 
     // 2. Renderer Setup
-    const container = document.getElementById('canvas-container');
-    if (!container) return; // تأكد من وجود الحاوية أولاً
-
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
-    container.appendChild(renderer.domElement);
+    document.getElementById('canvas-container').appendChild(renderer.domElement);
 
     // 3. Lighting
     const keyLight = new THREE.DirectionalLight(0xffffff, 1);
@@ -33,7 +30,6 @@ function initThree() {
 
     // 4. 3D Text Creation
     const loader = new THREE.FontLoader();
-    // استخدام رابط موثوق للخط أو مسار محلي
     loader.load('https://threejs.org/examples/fonts/helvetiker_bold.typeface.json', function (font) {
         const geometry = new THREE.TextGeometry('Who is my patient?', {
             font: font,
@@ -57,8 +53,6 @@ function initThree() {
         textMesh = new THREE.Mesh(geometry, material);
         textMesh.position.y = 10; 
         scene.add(textMesh);
-    }, undefined, function(err) {
-        console.error("فشل تحميل الخط:", err);
     });
 
     // 5. Starfield Effect
@@ -132,68 +126,62 @@ if (tiltContainer) {
 // --- SEARCH VALIDATION & API CALL ---
 async function validateSearch() {
     const input = document.getElementById('patientID').value.trim();
-    const spinner = document.getElementById('loading-spinner');
     
     if (input.length === 14 && /^\d+$/.test(input)) {
-        if(spinner) spinner.style.display = 'block';
-
         try {
-            // تم تغيير الرابط ليعمل على Vercel و Localhost تلقائياً
-            const response = await fetch(`/api/patients`);
+            // تأكد أن الرابط هو نفس بورت السيرفر (3000)
+            const response = await fetch(`/api/patient/${input}`);
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || "المريض غير مسجل");
+            }
+
             const result = await response.json();
             
             if (result.success) {
-                // البحث عن المريض بالرقم القومي داخل المصفوفة
-                const patient = result.data.find(p => p.nationalId === input);
-                
-                if (patient) {
-                    localStorage.setItem('tempPatientData', JSON.stringify(patient));
-                    window.location.href = "patient_report.html"; 
-                } else {
-                    showError("المريض غير مسجل في النظام.");
-                }
-            } else {
-                throw new Error("فشل في جلب البيانات من السيرفر");
+                // تخزين البيانات كاملة
+                localStorage.setItem('tempPatientData', JSON.stringify(result.data));
+                // الانتقال للصفحة التي أرسلت كودها أنت
+                window.location.href = "patient_report.html"; 
             }
         } catch (err) {
-            showError("حدث خطأ في الاتصال بالسيرفر. تأكد من رفعه بشكل صحيح.");
-            console.error(err);
-        } finally {
-            if(spinner) spinner.style.display = 'none';
+            // استدعاء دالة إظهار الخطأ الموجودة في index.html
+            showError(err.message === "Failed to fetch" ? "السيرفر غير متصل!" : err.message);
         }
     } else {
         showError("يرجى إدخال 14 رقماً صحيحاً.");
     }
 }
 
-// دالة واحدة موحدة لإظهار الخطأ
 function showError(msg) {
     const errorPopup = document.getElementById('error-popup');
     const errorText = document.getElementById('error-message');
     if (errorPopup && errorText) {
         errorText.innerText = msg;
         errorPopup.style.display = 'block';
-        // إخفاء تلقائي بعد 4 ثواني
-        setTimeout(closeError, 4000);
     }
 }
 
-function closeError() {
+function showError(msg) {
     const errorPopup = document.getElementById('error-popup');
-    if(errorPopup) errorPopup.style.display = 'none';
+    const errorText = document.getElementById('error-message');
+    if (errorText) errorText.innerText = msg;
+    errorPopup.style.display = 'block';
+}
+
+function closeError() {
+    document.getElementById('error-popup').style.display = 'none';
 }
 
 // --- EVENT LISTENERS ---
 window.addEventListener('resize', () => {
-    if (camera && renderer) {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-    }
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// تشغيل عند تحميل الصفحة لضمان وجود الـ DOM
-window.addEventListener('DOMContentLoaded', () => {
-    initThree();
-    animate();
-});س
+// Start Everything
+initThree();
+animate();
+
