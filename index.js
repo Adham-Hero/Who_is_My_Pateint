@@ -130,7 +130,7 @@ async function validateSearch() {
     if (input.length === 14 && /^\d+$/.test(input)) {
         try {
             // تأكد أن الرابط هو نفس بورت السيرفر (3000)
-            const response = await fetch(`http://localhost:3000/api/patient/${input}`);
+            const response = await fetch(`http:///who-is-my-pateint.vercel.app/api/patient/${input}`);
             
             if (!response.ok) {
                 const errorData = await response.json();
