@@ -1,93 +1,109 @@
-        // --- تهيئة Three.js للخلفية المتحركة ---
-        const canvas = document.querySelector('#bg-canvas');
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+// --- 1. Three.js Background Logic ---
+const initBackground = () => {
+    const canvas = document.querySelector('#bg-canvas');
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+    
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    // Particles
+    const particlesGeometry = new THREE.BufferGeometry();
+    const count = 2000;
+    const positions = new Float32Array(count * 3);
+
+    for(let i = 0; i < count * 3; i++) {
+        positions[i] = (Math.random() - 0.5) * 50;
+    }
+    particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+    const particlesMaterial = new THREE.PointsMaterial({
+        size: 0.04,
+        color: 0x0dcaf0,
+        transparent: true,
+        opacity: 0.3
+    });
+
+    const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
+    scene.add(particlesMesh);
+
+    camera.position.z = 15;
+
+    let mouseX = 0, mouseY = 0;
+    document.addEventListener('mousemove', (e) => {
+        mouseX = (e.clientX / window.innerWidth) - 0.5;
+        mouseY = (e.clientY / window.innerHeight) - 0.5;
+    });
+
+    const animate = () => {
+        requestAnimationFrame(animate);
+        particlesMesh.rotation.y += 0.0008;
         
+        camera.position.x += (mouseX * 4 - camera.position.x) * 0.03;
+        camera.position.y += (-mouseY * 4 - camera.position.y) * 0.03;
+        camera.lookAt(scene.position);
+
+        renderer.render(scene, camera);
+    };
+    animate();
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
+    });
+};
 
-        // إنشاء جزيئات (Particles)
-        const particlesGeometry = new THREE.BufferGeometry();
-        const count = 1500;
-        const positions = new Float32Array(count * 3);
+// --- 2. Data Population Logic ---
+const populateData = () => {
+    const rawData = localStorage.getItem('tempPatientData');
+    
+    if (!rawData) {
+        alert("لم يتم العثور على بيانات مريض. سيتم توجيهك لصفحة البحث.");
+        window.location.href = "index.html";
+        return;
+    }
 
-        for(let i = 0; i < count * 3; i++) {
-            positions[i] = (Math.random() - 0.5) * 50;
-        }
-        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const patient = JSON.parse(rawData);
 
-        const particlesMaterial = new THREE.PointsMaterial({
-            size: 0.05,
-            color: 0x0dcaf0,
-            transparent: true,
-            opacity: 0.4
-        });
+    // الحقول الأساسية
+    document.getElementById('p-name').innerText = patient.name || "غير مسجل";
+    document.getElementById('p-id').innerText = patient.nationalId || "---";
+    document.getElementById('p-id-display').innerText = patient.nationalId ? `ID-${patient.nationalId.slice(-4)}` : "NA";
+    document.getElementById('p-age').innerText = (patient.age || "??") + " سنة";
+    document.getElementById('p-phone').innerText = patient.phone || "---";
+    document.getElementById('p-address').innerText = patient.address || "غير متوفر";
+    document.getElementById('p-family-count').innerText = patient.familyCount || "0";
+    document.getElementById('p-family-history').innerText = patient.familyHistory || "لا توجد ملاحظات وراثية مسجلة.";
+    document.getElementById('p-visits').innerText = patient.medicalHistory?.visitsCount || "0";
 
-        const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
-        scene.add(particlesMesh);
+    // العمليات الجراحية
+    const surgDiv = document.getElementById('p-surgeries');
+    const surgeries = patient.medicalHistory?.surgeries || [];
+    surgDiv.innerHTML = surgeries.length > 0 
+        ? surgeries.map(s => `<span class="medical-badge">✚ ${s}</span>`).join('') 
+        : '<p class="text-muted small">لا يوجد سجل عمليات جراحية</p>';
 
-        camera.position.z = 15;
+    // الأمراض المزمنة
+    const chronicDiv = document.getElementById('p-chronic');
+    const chronic = patient.medicalHistory?.chronicDiseases || [];
+    chronicDiv.innerHTML = chronic.length > 0 
+        ? chronic.map(d => `<span class="medical-badge" style="border-color:#ff4d4d; color:#ff4d4d; background:rgba(255,77,77,0.1)">⚠ ${d}</span>`).join('') 
+        : '<p class="text-muted small">لا توجد أمراض مزمنة مسجلة</p>';
 
-        // تحريك الخلفية مع الماوس ببطء
-        let mouseX = 0;
-        let mouseY = 0;
-        document.addEventListener('mousemove', (e) => {
-            mouseX = (e.clientX / window.innerWidth) - 0.5;
-            mouseY = (e.clientY / window.innerHeight) - 0.5;
-        });
+    // الأدوية
+    const medsDiv = document.getElementById('p-meds');
+    const meds = patient.medicalHistory?.medications || [];
+    medsDiv.innerHTML = meds.length > 0 
+        ? meds.map(m => `<div class="med-list-item">💊 ${m}</div>`).join('') 
+        : '<p class="text-muted small">لا توجد أدوية حالية</p>';
 
-        function animate() {
-            requestAnimationFrame(animate);
-            particlesMesh.rotation.y += 0.001;
-            particlesMesh.rotation.x += 0.0005;
-            
-            // تحريك الكاميرا بناءً على الماوس لتأثير Parallax
-            camera.position.x += (mouseX * 5 - camera.position.x) * 0.05;
-            camera.position.y += (-mouseY * 5 - camera.position.y) * 0.05;
-            camera.lookAt(scene.position);
+    // تاريخ اليوم
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    document.getElementById('report-date').innerText = "تاريخ الاستخراج: " + new Date().toLocaleDateString('ar-EG', options);
+};
 
-            renderer.render(scene, camera);
-        }
-        animate();
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-
-        // --- كود تعبئة البيانات (المنطق السابق) ---
-        const patientData = JSON.parse(localStorage.getItem('tempPatientData'));
-
-        if (patientData) {
-            document.getElementById('p-name').innerText = patientData.name;
-            document.getElementById('p-id').innerText = patientData.nationalId;
-            document.getElementById('p-age').innerText = patientData.age + " سنة";
-            document.getElementById('p-phone').innerText = patientData.phone;
-            document.getElementById('p-address').innerText = patientData.address;
-            document.getElementById('p-family-count').innerText = patientData.familyCount;
-            document.getElementById('p-family-history').innerText = patientData.familyHistory;
-            document.getElementById('p-visits').innerText = patientData.medicalHistory.visitsCount;
-
-            const surgDiv = document.getElementById('p-surgeries');
-            if(patientData.medicalHistory.surgeries.length > 0) {
-                surgDiv.innerHTML = patientData.medicalHistory.surgeries.map(s => `<span class="medical-badge">${s}</span>`).join('');
-            } else { surgDiv.innerText = "لا يوجد سجل عمليات"; }
-
-            const chronicDiv = document.getElementById('p-chronic');
-            if(patientData.medicalHistory.chronicDiseases.length > 0) {
-                chronicDiv.innerHTML = patientData.medicalHistory.chronicDiseases.map(d => `<span class="medical-badge" style="border-color:#ffc107; color:#ffc107; background:rgba(255,193,7,0.1)">${d}</span>`).join('');
-            } else { chronicDiv.innerText = "لا يوجد أمراض مزمنة"; }
-
-            const medsDiv = document.getElementById('p-meds');
-            if(patientData.medicalHistory.medications.length > 0) {
-                medsDiv.innerHTML = patientData.medicalHistory.medications.map(m => `<div class="med-list-item">🔹 ${m}</div>`).join('');
-            } else { medsDiv.innerText = "لا يتم تناول أدوية حالياً"; }
-
-            document.getElementById('report-date').innerText = "توليد: " + new Date().toLocaleDateString('ar-EG');
-        } else {
-            window.location.href = "User.html";
-        }
-
-        
+// تشغيل الوظائف
+initBackground();
+populateData();
