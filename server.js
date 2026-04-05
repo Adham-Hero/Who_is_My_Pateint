@@ -55,7 +55,7 @@ const Patient = mongoose.model('Patient', patientSchema, 'patients');
 // --- 3. المسارات (API Routes) ---
 
 // تسجيل الدخول
-app.post('/api/login', async (req, res) => {
+app.post('/api/index', async (req, res) => {
     const { username, password } = req.body;
     try {
         const user = await User.findOne({ username, password });
