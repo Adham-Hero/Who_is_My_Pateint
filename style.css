@@ -2,59 +2,90 @@ body, html {
     margin: 0; 
     padding: 0; 
     overflow: hidden; 
-    background: #050505;
+    background: #050505; /* Deep space black */
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
     color: #eee;
-    perspective: 1500px; /* زيادة المنظور لعمق أفضل */
+    /* Necessary for 3D UI effect */
+    perspective: 1000px;
 }
 
-#canvas-container { 
-    position: fixed; 
-    top: 0; 
-    left: 0; 
-    width: 100%; 
-    height: 100%; 
-    z-index: 1; 
-}
+#canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
 
 .ui-overlay {
     position: relative;
     z-index: 10;
     height: 100vh;
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
-    pointer-events: none; 
+    pointer-events: none; /* Let mouse events pass to canvas by default */
 }
 
 .search-container {
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.07); /* More subtle for space theme */
+    backdrop-filter: blur(25px); /* Stronger Glass effect */
+    -webkit-backdrop-filter: blur(25px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
     padding: 3rem;
     border-radius: 25px;
-    box-shadow: 0 25px 45px rgba(0, 0, 0, 0.3);
-    pointer-events: all;
+    box-shadow: 0 15px 50px 0 rgba(0, 0, 0, 0.5);
+    pointer-events: all; /* Re-enable interaction for the form */
     width: 90%;
-    max-width: 500px;
-    transition: transform 0.1s ease-out;
-    transform-style: preserve-3d; /* ضروري لعمل التأثيرات الداخلية */
+    max-width: 550px;
+    
+    /* 3D Transform settings */
+    transition: transform 0.1s ease-out, box-shadow 0.2s ease;
+    transform-style: preserve-3d; 
+    will-change: transform;
 }
 
-/* جعل المحتوى يبرز قليلاً عن الكارت */
+/* Add depth to elements inside the 3D div */
 .search-container > * {
-    transform: translateZ(30px);
+    transform: translateZ(20px);
+}
+
+h2.search-title {
+    color: #fff;
+    font-weight: 300;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.form-control {
+    background-color: rgba(255, 255, 255, 0.9);
+    border: none;
+    color: #333;
+}
+.form-control:focus {
+    box-shadow: 0 0 0 0.3rem rgba(13, 202, 240, 0.3);
+    background-color: #fff;
 }
 
 .btn-custom {
-    background: linear-gradient(45deg, #0dcaf0, #0099cc) !important;
-    color: #000 !important;
+    background: linear-gradient(45deg, #0dcaf0, #0099cc); /* Gradient cyan */
+    color: #fff;
     border: none;
-    font-weight: bold;
-    transition: 0.3s;
+    transition: all 0.3s ease;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 .btn-custom:hover {
-    filter: brightness(1.1);
-    transform: translateZ(40px) scale(1.05);
+    background: linear-gradient(45deg, #0099cc, #0dcaf0);
+    transform: translateY(-2px) translateZ(10px); /* Add depth on hover */
+    box-shadow: 0 5px 15px rgba(13, 202, 240, 0.4);
+}
+
+/* Error Popup Style - Stays flat on top */
+#error-popup {
+    display: none;
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 100;
+    min-width: 320px;
+    border-radius: 12px;
+    transform: translateZ(100px); /* Keep it above everything */
 }

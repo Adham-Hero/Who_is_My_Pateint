@@ -3,37 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>الملف الطبي الشامل | السجل الرقمي</title>
+    <title>الملف الطبي الشامل</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
+        /* التنسيقات الأساسية */
         body { 
             margin: 0; 
             overflow-x: hidden; 
             background: #05080a; 
             color: #fff; 
-            font-family: 'Segoe UI', Tahoma, sans-serif; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
         }
 
+        /* حاوية Three.js خلف كل شيء */
         #bg-canvas {
             position: fixed;
             top: 0;
             left: 0;
-            z-index: -1;
+            z-index: -1; /* خلف المحتوى */
             width: 100%;
             height: 100%;
         }
 
-        /* تحسين تأثير الزجاج */
+        /* كارت التقرير الشفاف زجاجياً (Glassmorphism) */
         .report-card { 
-            background: rgba(11, 15, 20, 0.6);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-radius: 30px; 
-            border: 1px solid rgba(13, 202, 240, 0.25); 
-            padding: 45px; 
-            margin: 40px auto; 
-            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+            background: rgba(11, 15, 20, 0.7); /* شفافية عالية */
+            backdrop-filter: blur(15px); /* تعتيم الخلفية */
+            border-radius: 25px; 
+            border: 1px solid rgba(13, 202, 240, 0.2); 
+            padding: 40px; 
+            margin: 50px auto; 
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(13, 202, 240, 0.05);
             max-width: 1000px;
+            position: relative;
         }
 
         .section-title { 
@@ -41,54 +43,52 @@
             padding-right: 15px; 
             margin-bottom: 25px; 
             color: #0dcaf0; 
-            text-transform: uppercase;
-            font-weight: 700;
+            text-shadow: 0 0 10px rgba(13, 202, 240, 0.5);
         }
 
-        .data-label { color: #6c757d; font-size: 0.8rem; font-weight: bold; }
-        .data-value { font-size: 1.15rem; color: #f8f9fa; display: block; margin-top: 4px; }
+        .data-label { color: #8899a6; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; }
+        .data-value { font-size: 1.2rem; color: #e1e8ed; font-weight: 500; display: block; margin-top: 5px; }
         
         .medical-badge { 
             background: rgba(13, 202, 240, 0.1); 
             color: #0dcaf0; 
             border: 1px solid rgba(13, 202, 240, 0.3); 
-            padding: 5px 15px; 
-            border-radius: 12px; 
+            padding: 6px 18px; 
+            border-radius: 50px; 
             display: inline-block; 
-            margin: 4px; 
-            font-size: 0.85rem;
+            margin: 5px; 
+            font-size: 0.9rem;
+            transition: 0.3s;
         }
+        .medical-badge:hover { background: rgba(13, 202, 240, 0.2); transform: scale(1.05); }
 
         .med-list-item { 
-            background: rgba(255,255,255,0.05); 
-            margin-bottom: 10px; 
-            padding: 15px; 
-            border-radius: 12px; 
-            border-right: 4px solid #0dcaf0; 
-            transition: 0.3s;
+            background: rgba(255,255,255,0.03); 
+            margin-bottom: 8px; 
+            padding: 12px; 
+            border-radius: 10px; 
+            border-right: 3px solid #0dcaf0; 
         }
-        .med-list-item:hover { background: rgba(13, 202, 240, 0.1); }
 
         .btn-custom {
-            border: 2px solid #0dcaf0;
-            color: #0dcaf0;
-            padding: 12px 35px;
-            border-radius: 15px;
-            font-weight: bold;
-            transition: 0.3s;
             background: transparent;
+            border: 1px solid #0dcaf0;
+            color: #0dcaf0;
+            padding: 10px 30px;
+            border-radius: 50px;
+            transition: 0.4s;
+            text-decoration: none;
         }
         .btn-custom:hover {
             background: #0dcaf0;
             color: #000;
-            box-shadow: 0 0 25px rgba(13, 202, 240, 0.5);
+            box-shadow: 0 0 20px rgba(13, 202, 240, 0.6);
         }
 
+        /* لإخفاء العناصر عند الطباعة */
         @media print {
             #bg-canvas, .no-print { display: none !important; }
-            .report-card { background: white !important; color: black !important; border: 2px solid #000 !important; width: 100% !important; max-width: 100% !important; }
-            .section-title { color: #000 !important; border-right: 5px solid #000 !important; }
-            .medical-badge { border: 1px solid #000 !important; color: #000 !important; }
+            .report-card { background: white !important; color: black !important; border: 1px solid #ccc !important; }
         }
     </style>
 </head>
@@ -96,57 +96,56 @@
 
     <canvas id="bg-canvas"></canvas>
 
-    <div class="container py-4">
+    <div class="container pb-5">
         <div class="report-card">
-            <div class="d-flex justify-content-between align-items-center mb-5">
+            <div class="d-flex justify-content-between align-items-start mb-5">
                 <div>
-                    <h1 class="fw-bold text-info">السجل الطبي الرقمي</h1>
-                    <p class="text-white-50 small">كود التشفير البيومتري النشط: <span id="p-id-display">--</span></p>
+                    <h1 class="fw-bold text-info" style="letter-spacing: -1px;">الملف الطبي الرقمي <small class="fs-6 text-white-50 fw-light">v1.0</small></h1>
+                    <p class="text-white-50">نظام المزامنة البيومترية - سجلات المريض الأمنة</p>
                 </div>
                 <div class="text-end">
-                    <span id="report-date" class="badge bg-dark border border-info px-3 py-2"></span>
+                    <div id="report-date" class="badge bg-dark border border-secondary p-2"></div>
                 </div>
             </div>
 
             <div class="row mb-5">
-                <div class="col-12"><h4 class="section-title">البيانات الأساسية</h4></div>
-                <div class="col-md-4 mb-3"><span class="data-label">الاسم</span><span class="data-value" id="p-name">---</span></div>
-                <div class="col-md-4 mb-3"><span class="data-label">الرقم القومي</span><span class="data-value" id="p-id">---</span></div>
-                <div class="col-md-4 mb-3"><span class="data-label">العمر</span><span class="data-value" id="p-age">---</span></div>
-                <div class="col-md-4 mb-3"><span class="data-label">الهاتف</span><span class="data-value" id="p-phone">---</span></div>
-                <div class="col-md-8 mb-3"><span class="data-label">العنوان المسجل</span><span class="data-value" id="p-address">---</span></div>
+                <div class="col-12"><h4 class="section-title">المعلومات الشخصية</h4></div>
+                <div class="col-md-4 mb-4"><span class="data-label">الاسم الكامل</span><span class="data-value" id="p-name">---</span></div>
+                <div class="col-md-4 mb-4"><span class="data-label">الهوية الوطنية</span><span class="data-value" id="p-id">---</span></div>
+                <div class="col-md-4 mb-4"><span class="data-label">العمر البيولوجي</span><span class="data-value" id="p-age">---</span></div>
+                <div class="col-md-4"><span class="data-label">قناة التواصل</span><span class="data-value" id="p-phone">---</span></div>
+                <div class="col-md-8"><span class="data-label">الموقع الجغرافي</span><span class="data-value" id="p-address">---</span></div>
             </div>
 
             <div class="row mb-5">
                 <div class="col-md-7">
-                    <h4 class="section-title">التاريخ الجراحي والمرضي</h4>
+                    <h4 class="section-title">التاريخ الطبي والجراحي</h4>
                     <div id="p-surgeries" class="mb-4">---</div>
-                    <h4 class="section-title">الأمراض المزمنة</h4>
                     <div id="p-chronic">---</div>
                 </div>
                 <div class="col-md-5">
-                    <h4 class="section-title">الأدوية النشطة</h4>
+                    <h4 class="section-title">البروتوكول العلاجي</h4>
                     <div id="p-meds">---</div>
                 </div>
             </div>
 
             <div class="row align-items-center">
                 <div class="col-md-8">
-                    <h4 class="section-title">سجل العائلة الجيني</h4>
-                    <p id="p-family-history" class="text-white-50">---</p>
-                    <p class="small">عدد الأقارب المسجلين: <span id="p-family-count" class="text-info">0</span></p>
+                    <h4 class="section-title">تحليل العائلة</h4>
+                    <p id="p-family-history" class="text-white-50 lh-lg">---</p>
+                    <p>الأفراد المرتبطين بالسجل: <span id="p-family-count" class="text-info fw-bold">0</span></p>
                 </div>
                 <div class="col-md-4 text-center">
-                    <div class="p-4 rounded-4" style="background: rgba(13, 202, 240, 0.05); border: 1px dashed #0dcaf0;">
-                        <span class="data-label">مؤشر الزيارات الإجمالي</span>
-                        <div class="display-3 fw-bold text-info" id="p-visits">0</div>
+                    <div style="border: 1px solid rgba(13, 202, 240, 0.3); padding: 20px; border-radius: 20px; background: rgba(0,0,0,0.3);">
+                        <span class="data-label">مؤشر الزيارات</span>
+                        <div class="display-4 fw-bold text-info" id="p-visits">0</div>
                     </div>
                 </div>
             </div>
 
             <div class="mt-5 text-center no-print">
-                <button class="btn btn-custom me-2" onclick="window.print()">تصدير كـ PDF</button>
-                <a href="index.html" class="btn btn-outline-secondary rounded-pill px-4">رجوع للبحث</a>
+                <button class="btn btn-custom me-2" onclick="window.print()">توليد نسخة PDF</button>
+                <a href="User.html" class="btn btn-outline-secondary rounded-pill px-4" style="color: #ccc; border-color: #444;">إغلاق السجل</a>
             </div>
         </div>
     </div>
