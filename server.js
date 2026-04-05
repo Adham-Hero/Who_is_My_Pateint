@@ -1,36 +1,38 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const path = require('path'); // مهم جداً للمسارات
 
 const app = express();
 
 // --- الإعدادات الأساسية ---
 app.use(cors()); 
-app.use(express.json()); // ضروري لاستقبال بيانات JSON
+app.use(express.json()); 
+
+// 🔥 تعديل هام: جعل السيرفر يخدم ملفات الواجهة الأمامية (HTML, JS, CSS)
+app.use(express.static(path.join(__dirname, '/')));
 
 // --- 1. الاتصال بـ MongoDB Atlas ---
 const dbURI = 'mongodb+srv://adham612199:A_h61219975@cluster0.ybubu9q.mongodb.net/HospitalDB?retryWrites=true&w=majority';
 
+// تحسين الاتصال ليتناسب مع بيئة Serverless
 mongoose.connect(dbURI)
     .then(() => {
         console.log("✅ Successfully connected to MongoDB Atlas!");
-        createDefaultUsers(); // إنشاء المستخدمين الافتراضيين عند نجاح الاتصال
+        createDefaultUsers(); 
     })
     .catch(err => {
         console.error("❌ Connection error detail:", err.message);
     });
 
 // --- 2. تعريف الموديلات (Models) ---
-
-// أ. موديل المستخدمين (Login System)
 const userSchema = new mongoose.Schema({
     username: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     role: { type: String, enum: ['admin', 'user'], default: 'user' }
 });
-const User = mongoose.model('User', userSchema);
+const User = mongoose.models.User || mongoose.model('User', userSchema);
 
-// ب. موديل المريض (Patient System)
 const patientSchema = new mongoose.Schema({
     nationalId: { type: String, required: true, unique: true },
     name: { type: String, required: true },
@@ -47,21 +49,23 @@ const patientSchema = new mongoose.Schema({
     },
     profileUrl: String 
 });
-const Patient = mongoose.model('Patient', patientSchema, 'patients');
+const Patient = mongoose.models.Patient || mongoose.model('Patient', patientSchema, 'patients');
 
-// --- 3. مسارات تسجيل الدخول (Authentication) ---
+// --- 3. مسارات الواجهة (Frontend Routes) ---
+
+// تشغيل الصفحة الرئيسية
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// --- 4. مسارات تسجيل الدخول (Authentication) ---
 
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
     try {
         const user = await User.findOne({ username, password });
         if (user) {
-            console.log(`🔑 Login Success: ${username} (${user.role})`);
-            res.json({ 
-                success: true, 
-                role: user.role, 
-                message: "تم تسجيل الدخول بنجاح" 
-            });
+            res.json({ success: true, role: user.role, message: "تم تسجيل الدخول بنجاح" });
         } else {
             res.status(401).json({ success: false, message: "اسم المستخدم أو كلمة المرور غير صحيحة" });
         }
@@ -70,37 +74,8 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// --- 4. مسارات المرضى (Patients Routes) ---
+// --- 5. مسارات المرضى (Patients Routes) ---
 
-// مسار تجريبي للتأكد من عمل السيرفر
-app.get('/', (req, res) => {
-    res.send('🚀 Hospital Management API is running...');
-});
-
-// إضافة مريض جديد (Create)
-app.post('/api/patients', async (req, res) => {
-    try {
-        const newPatient = new Patient(req.body);
-        await newPatient.save();
-        console.log("✅ New Patient Added:", newPatient.name);
-        res.status(201).json({ success: true, message: "تم إضافة المريض بنجاح" });
-    } catch (err) {
-        console.error("❌ Add Error:", err.message);
-        res.status(400).json({ success: false, message: "فشل إضافة المريض، تأكد من عدم تكرار الرقم القومي" });
-    }
-});
-
-// جلب كل المرضى (Read All)
-app.get('/api/patients', async (req, res) => {
-    try {
-        const patients = await Patient.find().sort({ _id: -1 });
-        res.json({ success: true, data: patients });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
-});
-
-// البحث عن مريض محدد بالرقم القومي (Read One)
 app.get('/api/patient/:id', async (req, res) => {
     const patientId = req.params.id;
     try {
@@ -115,37 +90,36 @@ app.get('/api/patient/:id', async (req, res) => {
     }
 });
 
-// حذف مريض (Delete)
-app.delete('/api/patient/:id', async (req, res) => {
+app.post('/api/patients', async (req, res) => {
     try {
-        const result = await Patient.findOneAndDelete({ nationalId: req.params.id });
-        if (result) {
-            console.log("🗑️ Patient Deleted:", req.params.id);
-            res.json({ success: true, message: "تم حذف سجل المريض بنجاح" });
-        } else {
-            res.status(404).json({ success: false, message: "المريض غير موجود بالفعل" });
-        }
+        const newPatient = new Patient(req.body);
+        await newPatient.save();
+        res.status(201).json({ success: true, message: "تم إضافة المريض بنجاح" });
     } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
+        res.status(400).json({ success: false, message: "فشل إضافة المريض" });
     }
 });
 
-// --- 5. وظيفة إنشاء مستخدمين افتراضيين (Admin & User) ---
+// --- 6. وظيفة إنشاء مستخدمين افتراضيين ---
 async function createDefaultUsers() {
     try {
         const adminExists = await User.findOne({ username: 'admin' });
         if (!adminExists) {
             await User.create({ username: 'admin', password: '123', role: 'admin' });
             await User.create({ username: 'user1', password: '456', role: 'user' });
-            console.log("👥 Default users created (admin/123 & user1/456)");
+            console.log("👥 Default users created");
         }
     } catch (err) {
         console.error("❌ Error creating default users:", err.message);
     }
 }
 
-// --- 6. تشغيل السيرفر ---
-const PORT = 3000;
-app.listen(PORT, () => {
-    console.log(`🚀 Server is flying on http://localhost:${PORT}`);
-});
+// --- 7. تصدير التطبيق لـ Vercel وتجربته محلياً ---
+const PORT = process.env.PORT || 3000;
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(PORT, () => {
+        console.log(`🚀 Server is flying on http://localhost:${PORT}`);
+    });
+}
+
+module.exports = app; // ضروري لعمل Vercel
