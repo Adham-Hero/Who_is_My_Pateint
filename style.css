@@ -4,7 +4,7 @@ body, html {
     overflow: hidden; 
     background: #050505;
     color: #eee;
-    perspective: 1000px;
+    perspective: 1500px; /* زيادة المنظور لعمق أفضل */
 }
 
 #canvas-container { 
@@ -27,32 +27,34 @@ body, html {
 }
 
 .search-container {
-    background: rgba(255, 255, 255, 0.07);
-    backdrop-filter: blur(25px);
-    -webkit-backdrop-filter: blur(25px);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     padding: 3rem;
     border-radius: 25px;
-    box-shadow: 0 15px 50px 0 rgba(0, 0, 0, 0.5);
+    box-shadow: 0 25px 45px rgba(0, 0, 0, 0.3);
     pointer-events: all;
     width: 90%;
-    max-width: 550px;
+    max-width: 500px;
     transition: transform 0.1s ease-out;
-    transform-style: preserve-3d;
+    transform-style: preserve-3d; /* ضروري لعمل التأثيرات الداخلية */
 }
 
+/* جعل المحتوى يبرز قليلاً عن الكارت */
 .search-container > * {
-    transform: translateZ(20px);
+    transform: translateZ(30px);
 }
 
 .btn-custom {
     background: linear-gradient(45deg, #0dcaf0, #0099cc) !important;
     color: #000 !important;
     border: none;
-    transition: all 0.3s ease;
+    font-weight: bold;
+    transition: 0.3s;
 }
 
 .btn-custom:hover {
-    filter: brightness(1.2);
-    transform: scale(1.05);
+    filter: brightness(1.1);
+    transform: translateZ(40px) scale(1.05);
 }
