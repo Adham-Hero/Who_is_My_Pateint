@@ -16,37 +16,39 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
-        /* حاوية الـ 3D في الخلفية */
+        /* حاوية الـ 3D الثابتة في الخلفية */
         #canvas-container {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: -1;
+            z-index: 0; /* تم التعديل لضمان الظهور */
         }
 
         .ui-overlay {
             position: relative;
-            z-index: 1;
+            z-index: 10;
             height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.4) 100%);
+            background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.6) 100%);
+            pointer-events: none; /* تسمح بمرور حركات الماوس للخلفية إذا لزم الأمر */
         }
 
         .search-container {
-            background: rgba(11, 15, 20, 0.4);
+            background: rgba(11, 15, 20, 0.6);
             backdrop-filter: blur(15px);
             -webkit-backdrop-filter: blur(15px);
             padding: 40px;
             border-radius: 25px;
-            border: 1px solid rgba(13, 202, 240, 0.15);
+            border: 1px solid rgba(13, 202, 240, 0.2);
             max-width: 500px;
             width: 95%;
-            box-shadow: 0 25px 50px rgba(0,0,0,0.6);
-            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 25px 50px rgba(0,0,0,0.8);
+            transition: transform 0.1s ease-out;
+            pointer-events: auto; /* استعادة القدرة على الضغط داخل صندوق البحث */
         }
 
         .search-title {
@@ -59,10 +61,10 @@
         .form-control {
             text-align: center;
             letter-spacing: 2px;
-            background: rgba(0, 0, 0, 0.5) !important;
+            background: rgba(0, 0, 0, 0.7) !important;
             border: 1px solid #333 !important;
             color: #fff !important;
-            border-radius: 10px 0 0 10px !important;
+            border-radius: 0 10px 10px 0 !important; /* تعديل ليتناسب مع RTL */
         }
 
         .form-control:focus {
@@ -74,14 +76,14 @@
             background: #0dcaf0;
             color: #000;
             font-weight: bold;
-            border-radius: 0 10px 10px 0 !important;
+            border-radius: 10px 0 0 10px !important; /* تعديل ليتناسب مع RTL */
             border: none;
             transition: all 0.3s ease;
         }
 
         .btn-custom:hover {
             background: #0bb5d9;
-            transform: scale(1.02);
+            transform: scale(1.05);
         }
 
         #error-popup {
@@ -89,17 +91,15 @@
             position: fixed; 
             top: 25px; 
             left: 25px;
-            z-index: 9999;
+            z-index: 10000;
             min-width: 320px;
             border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
 
         .loading-spinner {
             display: none;
             color: #0dcaf0;
             margin-top: 15px;
-            font-size: 0.9rem;
         }
     </style>
 </head>
@@ -132,68 +132,72 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/fonts/FontLoader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/geometries/TextGeometry.js"></script>
 
 <script>
 // --- GLOBAL VARIABLES ---
 let scene, camera, renderer, textMesh, starSystem;
 const clock = new THREE.Clock();
 
-// --- THREE.JS INITIALIZATION ---
 function initThree() {
     scene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.z = 25; 
+    camera.position.z = 30; 
 
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
-    const container = document.getElementById('canvas-container');
-    if (container) container.appendChild(renderer.domElement);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-    // Lighting
-    const keyLight = new THREE.DirectionalLight(0xffffff, 1);
-    keyLight.position.set(5, 5, 15);
-    scene.add(keyLight);
-
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+    // الإضاءة
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     scene.add(ambientLight);
     
-    const pointLight = new THREE.PointLight(0x0dcaf0, 1.5, 100);
-    pointLight.position.set(-15, -10, 5);
+    const pointLight = new THREE.PointLight(0x0dcaf0, 2, 100);
+    pointLight.position.set(10, 10, 10);
     scene.add(pointLight);
 
-    // 3D Text
-    const loader = new THREE.FontLoader();
-    loader.load('https://threejs.org/examples/fonts/helvetiker_bold.typeface.json', function (font) {
-        const geometry = new THREE.TextGeometry('Who is my patient?', {
-            font: font,
-            size: 1.5,
-            height: 0.5,
-            curveSegments: 12,
-            bevelEnabled: true,
-            bevelThickness: 0.05,
-            bevelSize: 0.03
-        });
-        geometry.center();
-        const material = new THREE.MeshPhongMaterial({ color: 0xffffff, specular: 0x0dcaf0, shininess: 100 });
-        textMesh = new THREE.Mesh(geometry, material);
-        textMesh.position.y = 10; 
-        scene.add(textMesh);
-    });
-
-    // Starfield
-    const starCount = 10000;
+    // النجوم (Starfield)
+    const starCount = 6000;
     const starGeometry = new THREE.BufferGeometry();
     const starPositions = new Float32Array(starCount * 3);
     for (let i = 0; i < starCount * 3; i++) {
         starPositions[i] = (Math.random() - 0.5) * 200;
     }
     starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-    const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.1, transparent: true, opacity: 0.6 });
+    const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.15, transparent: true, opacity: 0.8 });
     starSystem = new THREE.Points(starGeometry, starMaterial);
     scene.add(starSystem);
+
+    // تحميل النص ثلاثي الأبعاد بشكل صحيح
+    // ملاحظة: تم استخدام FontLoader من CDN خارجي لتجنب مشاكل التوافق
+    const fontLoaderScript = document.createElement('script');
+    fontLoaderScript.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FontLoader.js';
+    fontLoaderScript.onload = () => {
+        const textGeoScript = document.createElement('script');
+        textGeoScript.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/geometries/TextGeometry.js';
+        textGeoScript.onload = () => {
+            const loader = new THREE.FontLoader();
+            // رابط خط يعمل وموثوق
+            loader.load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/fonts/helvetiker_bold.typeface.json', function (font) {
+                const geometry = new THREE.TextGeometry('Who is my patient?', {
+                    font: font,
+                    size: 2,
+                    height: 0.5,
+                    curveSegments: 12,
+                    bevelEnabled: true,
+                    bevelThickness: 0.1,
+                    bevelSize: 0.05
+                });
+                geometry.center();
+                const material = new THREE.MeshPhongMaterial({ color: 0x0dcaf0, specular: 0xffffff, shininess: 100 });
+                textMesh = new THREE.Mesh(geometry, material);
+                textMesh.position.y = 12; 
+                scene.add(textMesh);
+            });
+        };
+        document.head.appendChild(textGeoScript);
+    };
+    document.head.appendChild(fontLoaderScript);
 
     animate();
 }
@@ -203,45 +207,33 @@ function animate() {
     const elapsedTime = clock.getElapsedTime();
 
     if (textMesh) {
-        textMesh.rotation.y += 0.003;
-        textMesh.position.y = 10 + Math.sin(elapsedTime * 0.5) * 1;
+        textMesh.rotation.y += 0.005;
+        textMesh.position.y = 12 + Math.sin(elapsedTime * 0.8) * 0.5;
     }
     if (starSystem) {
-        starSystem.rotation.y += 0.0003;
+        starSystem.rotation.y += 0.0005;
     }
     renderer.render(scene, camera);
 }
 
-// --- UI INTERACTIONS ---
+// --- UI INTERACTIONS (Tilt Effect) ---
 const tiltContainer = document.getElementById('tilt-container');
-if (tiltContainer) {
-    tiltContainer.addEventListener('mousemove', (e) => {
-        const rect = tiltContainer.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        const centerX = rect.width / 2;
-        const centerY = rect.height / 2;
-        const rotateX = ((centerY - y) / centerY) * 10;
-        const rotateY = ((x - centerX) / centerX) * 10;
-        tiltContainer.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
-    });
-
-    tiltContainer.addEventListener('mouseleave', () => {
-        tiltContainer.style.transform = 'rotateX(0deg) rotateY(0deg)';
-    });
-}
+document.addEventListener('mousemove', (e) => {
+    if (!tiltContainer) return;
+    const x = (window.innerWidth / 2 - e.pageX) / 30;
+    const y = (window.innerHeight / 2 - e.pageY) / 30;
+    tiltContainer.style.transform = `rotateY(${-x}deg) rotateX(${y}deg)`;
+});
 
 // --- CORE FUNCTIONALITY ---
 async function validateSearch() {
     const input = document.getElementById('patientID').value.trim();
     const spinner = document.getElementById('loading-spinner');
     
-    if (input.length === 14 && /^\d+$/.test(input)) {
-        if(spinner) spinner.style.display = 'block';
+    if (input.length === 14) {
+        spinner.style.display = 'block';
         try {
-            const response = await fetch(`/api/patients`);
-            if (!response.ok) throw new Error("السيرفر غير مستجيب");
-            
+            const response = await fetch('/api/patients');
             const result = await response.json();
             
             if (result.success) {
@@ -250,47 +242,34 @@ async function validateSearch() {
                     localStorage.setItem('tempPatientData', JSON.stringify(patient));
                     window.location.href = "patient_report.html"; 
                 } else {
-                    showError("هذا الرقم القومي غير مسجل لدينا.");
+                    showError("الرقم القومي غير موجود في النظام.");
                 }
             }
         } catch (err) {
-            showError("خطأ في الاتصال: تأكد من تشغيل السيرفر.");
-            console.error(err);
+            showError("حدث خطأ في الاتصال بالسيرفر.");
         } finally {
-            if(spinner) spinner.style.display = 'none';
+            spinner.style.display = 'none';
         }
     } else {
-        showError("يرجى إدخال 14 رقماً صحيحاً.");
+        showError("يرجى إدخال الرقم القومي كاملاً (14 رقماً).");
     }
 }
 
 function showError(msg) {
     const errorPopup = document.getElementById('error-popup');
-    const errorText = document.getElementById('error-message');
-    if (errorPopup && errorText) {
-        errorText.innerText = msg;
-        errorPopup.style.display = 'block';
-        // إغلاق تلقائي بعد 5 ثوانٍ
-        setTimeout(closeError, 5000);
-    }
+    document.getElementById('error-message').innerText = msg;
+    errorPopup.style.display = 'block';
+    setTimeout(() => { errorPopup.style.display = 'none'; }, 5000);
 }
 
 function closeError() {
-    const errorPopup = document.getElementById('error-popup');
-    if(errorPopup) errorPopup.style.display = 'none';
+    document.getElementById('error-popup').style.display = 'none';
 }
 
-// Event Listeners
 window.addEventListener('resize', () => {
-    if (camera && renderer) {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-    }
-});
-
-document.getElementById('patientID').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') validateSearch();
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
 // Start
