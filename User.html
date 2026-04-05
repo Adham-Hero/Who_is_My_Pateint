@@ -7,33 +7,18 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background-color: #020202;
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; background-color: #020202;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
-        /* حاوية الخلفية ثلاثية الأبعاد */
         #canvas-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;
         }
 
         .ui-overlay {
-            position: relative;
-            z-index: 10;
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            /* طبقة تظليل خفيفة لإبراز المحتوى */
+            position: relative; z-index: 10; height: 100vh;
+            display: flex; align-items: center; justify-content: center;
             background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.4) 100%);
         }
 
@@ -41,53 +26,45 @@
             background: rgba(11, 15, 20, 0.7);
             backdrop-filter: blur(15px);
             -webkit-backdrop-filter: blur(15px);
-            padding: 40px;
-            border-radius: 25px;
+            padding: 40px; border-radius: 25px;
             border: 1px solid rgba(13, 202, 240, 0.3);
-            max-width: 500px;
-            width: 95%;
+            max-width: 500px; width: 95%;
             box-shadow: 0 0 40px rgba(13, 202, 240, 0.1);
-            /* حركة ناعمة عند العودة للوضع الطبيعي */
             transition: transform 0.3s ease-out, box-shadow 0.3s ease;
-            transform-style: preserve-3d;
-            perspective: 1000px;
+            transform-style: preserve-3d; perspective: 1000px;
         }
 
-        /* تأثير التوهج عند لمس الماوس */
         .search-container:hover {
             box-shadow: 0 0 60px rgba(13, 202, 240, 0.25);
             border-color: rgba(13, 202, 240, 0.5);
         }
 
         .search-title {
-            font-weight: 800;
-            color: #0dcaf0;
+            font-weight: 800; color: #0dcaf0;
             text-shadow: 0 0 15px rgba(13, 202, 240, 0.4);
             margin-bottom: 1.5rem;
         }
 
         .form-control {
-            text-align: center;
-            background: rgba(0, 0, 0, 0.5) !important;
-            border: 1px solid #444 !important;
-            color: #fff !important;
+            text-align: center; background: rgba(0, 0, 0, 0.5) !important;
+            border: 1px solid #444 !important; color: #fff !important;
             border-radius: 0 12px 12px 0 !important;
         }
 
         .btn-custom {
-            background: #0dcaf0;
-            color: #000;
-            font-weight: bold;
-            border-radius: 12px 0 0 12px !important;
-            border: none;
-            transition: 0.3s;
+            background: #0dcaf0; color: #000; font-weight: bold;
+            border-radius: 12px 0 0 12px !important; border: none; transition: 0.3s;
         }
 
-        .btn-custom:hover { background: #0bb5d9; }
+        .btn-custom:hover { background: #0bb5d9; transform: scale(1.05); }
 
         #error-popup {
             display: none; position: fixed; top: 20px; left: 20px; z-index: 10001;
+            border-radius: 12px;
         }
+
+        /* لودر صغير داخل الزر */
+        .spinner-border-sm { width: 1rem; height: 1rem; display: none; }
     </style>
 </head>
 <body>
@@ -95,6 +72,7 @@
 <div id="canvas-container"></div>
 
 <div id="error-popup" class="alert alert-warning alert-dismissible fade show shadow-lg" role="alert">
+    <strong id="error-title">تنبيه!</strong> <br>
     <span id="error-message">الرقم القومي غير صحيح.</span>
     <button type="button" class="btn-close" onclick="this.parentElement.style.display='none'"></button>
 </div>
@@ -102,18 +80,24 @@
 <div class="ui-overlay">
     <div class="search-container text-center" id="tilt-box">
         <h2 class="search-title">قاعدة بيانات المرضى</h2>
-        <p class="text-white-50 mb-4">أدخل الرقم القومي للتحقق من السجل.</p>
+        <p class="text-white-50 mb-4">أدخل الرقم القومي للتحقق من السجل الطبي الرقمي.</p>
         
         <div class="input-group input-group-lg mb-2" dir="ltr">
-            <button class="btn btn-custom px-4" type="button" onclick="validateSearch()">بـحـث</button>
-            <input type="text" id="patientID" class="form-control" placeholder="14 رقماً" maxlength="14">
+            <button id="searchBtn" class="btn btn-custom px-4" type="button" onclick="validateSearch()">
+                <span id="btnText">بـحـث</span>
+                <div id="btnSpinner" class="spinner-border spinner-border-sm" role="status"></div>
+            </button>
+            <input type="text" id="patientID" class="form-control" placeholder="14 رقماً" maxlength="14" onkeypress="handleEnter(event)">
         </div>
     </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FontLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/geometries/TextGeometry.js"></script>
 
 <script>
+// --- THREE.JS (3D Background & Text) ---
 let scene, camera, renderer, textMesh, stars;
 
 function initThree() {
@@ -125,13 +109,11 @@ function initThree() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-    // إضافة الإضاءة
     scene.add(new THREE.AmbientLight(0xffffff, 0.6));
     const pLight = new THREE.PointLight(0x0dcaf0, 2, 100);
     pLight.position.set(0, 10, 10);
     scene.add(pLight);
 
-    // إضافة النجوم
     const starGeo = new THREE.BufferGeometry();
     const starPos = new Float32Array(5000 * 3);
     for(let i=0; i<15000; i++) starPos[i] = (Math.random() - 0.5) * 200;
@@ -139,19 +121,17 @@ function initThree() {
     stars = new THREE.Points(starGeo, new THREE.PointsMaterial({color: 0xaaaaaa, size: 0.1}));
     scene.add(stars);
 
-    // تحميل جملة "Who is my patient?" ثلاثية الأبعاد
     const loader = new THREE.FontLoader();
     loader.load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/fonts/helvetiker_bold.typeface.json', (font) => {
         const textGeo = new THREE.TextGeometry('Who is my patient?', {
-            font: font, size: 2.5, height: 0.6, curveSegments: 10,
+            font: font, size: 2.2, height: 0.5, curveSegments: 10,
             bevelEnabled: true, bevelThickness: 0.1, bevelSize: 0.05
         });
         textGeo.center();
         textMesh = new THREE.Mesh(textGeo, new THREE.MeshPhongMaterial({color: 0x0dcaf0}));
-        textMesh.position.y = 12; // وضعها فوق الديف
+        textMesh.position.y = 13;
         scene.add(textMesh);
     });
-
     animate();
 }
 
@@ -159,36 +139,78 @@ function animate() {
     requestAnimationFrame(animate);
     if(textMesh) {
         textMesh.rotation.y += 0.005;
-        textMesh.position.y = 12 + Math.sin(Date.now() * 0.002) * 0.5;
+        textMesh.position.y = 13 + Math.sin(Date.now() * 0.002) * 0.5;
     }
-    stars.rotation.y += 0.0003;
+    if(stars) stars.rotation.y += 0.0003;
     renderer.render(scene, camera);
 }
 
-// --- تحريك الديف فقط عند لمس الماوس (Tilt Logic) ---
+// --- TILT EFFECT (Mouse Sensitive) ---
 const box = document.getElementById('tilt-box');
-
 box.addEventListener('mousemove', (e) => {
     const rect = box.getBoundingClientRect();
-    const x = e.clientX - rect.left; // مكان الماوس داخل الديف
+    const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
-    
-    // حساب زاوية الدوران (أقصى ميل 15 درجة)
-    const rotateX = ((centerY - y) / centerY) * 15;
-    const rotateY = ((x - centerX) / centerX) * 15;
-    
+    const rotateX = ((rect.height/2 - y) / (rect.height/2)) * 15;
+    const rotateY = ((x - rect.width/2) / (rect.width/2)) * 15;
     box.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
 });
-
-// إعادة الديف لوضعه الطبيعي عند خروج الماوس
 box.addEventListener('mouseleave', () => {
     box.style.transform = `rotateX(0deg) rotateY(0deg) scale(1)`;
 });
 
-// تشغيل النظام
+// --- CORE SEARCH LOGIC (API Connection) ---
+async function validateSearch() {
+    const idInput = document.getElementById('patientID').value.trim();
+    const btnText = document.getElementById('btnText');
+    const btnSpinner = document.getElementById('btnSpinner');
+    const pop = document.getElementById('error-popup');
+    const msg = document.getElementById('error-message');
+
+    // التحقق من المدخلات
+    if(idInput.length !== 14 || isNaN(idInput)) {
+        showError("يرجى إدخال الرقم القومي الصحيح (14 رقماً).");
+        return;
+    }
+
+    // بدء لودر البحث
+    btnText.style.display = 'none';
+    btnSpinner.style.display = 'inline-block';
+
+    try {
+        // طلب البيانات من السيرفر
+        const response = await fetch('/api/patients');
+        const result = await response.json();
+
+        if (result.success) {
+            const patient = result.data.find(p => p.nationalId === idInput);
+            if (patient) {
+                // حفظ البيانات مؤقتاً والذهاب للتقرير
+                localStorage.setItem('tempPatientData', JSON.stringify(patient));
+                window.location.href = "patient_report.html";
+            } else {
+                showError("هذا الرقم القومي غير مسجل في النظام.");
+            }
+        }
+    } catch (err) {
+        showError("خطأ في الاتصال بالسيرفر. تأكد من تشغيل Node.js");
+    } finally {
+        btnText.style.display = 'inline-block';
+        btnSpinner.style.display = 'none';
+    }
+}
+
+function showError(text) {
+    const pop = document.getElementById('error-popup');
+    document.getElementById('error-message').innerText = text;
+    pop.style.display = 'block';
+    setTimeout(() => { pop.style.display = 'none'; }, 4000);
+}
+
+function handleEnter(e) {
+    if (e.key === 'Enter') validateSearch();
+}
+
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
@@ -196,22 +218,6 @@ window.addEventListener('resize', () => {
 });
 
 initThree();
-
-async function validateSearch() {
-    const id = document.getElementById('patientID').value;
-    if(id.length === 14) {
-        // ضع هنا كود الـ Fetch الخاص بك
-        alert("جاري البحث عن المريض...");
-    } else {
-        const pop = document.getElementById('error-popup');
-        pop.style.display = 'block';
-        setTimeout(() => pop.style.display='none', 3000);
-    }
-}
 </script>
-
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FontLoader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/geometries/TextGeometry.js"></script>
-
 </body>
 </html>
