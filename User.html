@@ -3,30 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Who is my patient - البحث عن مريض</title>
+    <title>Who is my patient - البحث الرقمي</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
     <style>
+        /* تحسينات التصميم لدمج الـ 3D مع الواجهة */
         body, html {
             margin: 0;
             padding: 0;
             width: 100%;
             height: 100%;
-            overflow: hidden; /* لمنع السكرول المزدوج مع الـ Canvas */
+            overflow: hidden; /* منع التمرير لضمان ثبات الخلفية */
             background-color: #05080a;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
-        /* حاوية الـ 3D يجب أن تكون في الخلفية تماماً */
+        /* حاوية Three.js */
         #canvas-container {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: -1; /* خلف واجهة المستخدم */
+            z-index: -1; /* خلف الواجهة */
         }
 
+        /* الطبقة العلوية للواجهة */
         .ui-overlay {
             position: relative;
             z-index: 1;
@@ -34,40 +35,39 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            pointer-events: none; /* للسماح بمرور حركة الماوس للخلفية إذا أردت */
         }
 
         .search-container {
-            background: rgba(11, 15, 20, 0.6);
-            backdrop-filter: blur(10px);
+            background: rgba(11, 15, 20, 0.4);
+            backdrop-filter: blur(15px); /* تأثير الزجاج الضبابي */
+            -webkit-backdrop-filter: blur(15px);
             padding: 40px;
-            border-radius: 25px;
+            border-radius: 30px;
             border: 1px solid rgba(13, 202, 240, 0.2);
-            max-width: 500px;
+            max-width: 550px;
             width: 90%;
-            pointer-events: auto; /* استعادة التفاعل للأزرار والمدخلات */
-            box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+            transition: transform 0.1s ease-out; /* لتأثير الـ Tilt */
         }
 
         .search-title {
             font-weight: 800;
             color: #0dcaf0;
-            text-shadow: 0 0 15px rgba(13, 202, 240, 0.4);
+            text-shadow: 0 0 20px rgba(13, 202, 240, 0.5);
         }
 
         .form-control {
             text-align: center;
-            letter-spacing: 2px;
-            background: rgba(0,0,0,0.4);
-            border: 1px solid #444;
-            color: #fff;
+            letter-spacing: 3px;
+            background: rgba(0, 0, 0, 0.5) !important;
+            border: 1px solid #333 !important;
+            color: #fff !important;
+            border-radius: 10px 0 0 10px !important;
         }
 
         .form-control:focus {
-            background: rgba(0,0,0,0.6);
-            color: #fff;
-            border-color: #0dcaf0;
-            box-shadow: 0 0 10px rgba(13, 202, 240, 0.3);
+            border-color: #0dcaf0 !important;
+            box-shadow: 0 0 15px rgba(13, 202, 240, 0.3) !important;
         }
 
         .btn-custom {
@@ -75,6 +75,7 @@
             color: #000;
             font-weight: bold;
             border-radius: 0 10px 10px 0 !important;
+            border: none;
             transition: 0.3s;
         }
 
@@ -86,17 +87,17 @@
         #error-popup {
             display: none; 
             position: fixed; 
-            top: 20px; 
-            left: 20px;
+            top: 25px; 
+            left: 25px;
             z-index: 9999;
-            min-width: 300px;
-            text-align: right;
+            min-width: 320px;
+            border-radius: 15px;
         }
 
         .loading-spinner {
             display: none;
             color: #0dcaf0;
-            margin-top: 15px;
+            margin-top: 20px;
         }
     </style>
 </head>
@@ -105,100 +106,55 @@
 <div id="canvas-container"></div>
 
 <div id="error-popup" class="alert alert-warning alert-dismissible fade show shadow-lg" role="alert">
-    <strong id="error-title">تنبيه!</strong> 
-    <span id="error-message">يرجى التأكد من الرقم القومي (14 رقم).</span>
-    <button type="button" class="btn-close" onclick="closeError()" aria-label="إغلاق" style="left: auto; right: 0;"></button>
+    <strong id="error-title">تنبيه نظامي!</strong> 
+    <br>
+    <span id="error-message">الرقم القومي يجب أن يكون 14 رقماً.</span>
+    <button type="button" class="btn-close" onclick="closeError()" aria-label="إغلاق" style="left: auto; right: 10px;"></button>
 </div>
 
 <div class="ui-overlay">
     <div class="search-container text-center" id="tilt-container">
-        <h2 class="search-title mb-4">قاعدة بيانات المرضى</h2>
-        <p class="text-white-50 mb-4">أدخل الرقم القومي للوصول إلى السجل الطبي الفوري.</p>
+        <h2 class="search-title mb-4">بوابة السجلات الطبية</h2>
+        <p class="text-white-50 mb-4">أدخل الرقم القومي المكون من 14 رقماً للتحقق من هوية المريض وسجله.</p>
         
-        <div class="input-group input-group-lg mb-3" dir="ltr">
+        <div class="input-group input-group-lg mb-2" dir="ltr">
             <button class="btn btn-custom px-4" type="button" onclick="validateSearch()">
-                بحث
+                بـحـث
             </button>
             <input type="text" 
                    id="patientID" 
                    class="form-control" 
                    placeholder="29501011234567" 
-                   oninput="this.value = this.value.replace(/[^0-9]/g, '');" 
-                   maxlength="14">
+                   maxlength="14"
+                   autocomplete="off"
+                   oninput="this.value = this.value.replace(/[^0-9]/g, '');">
         </div>
 
         <div id="loading-spinner" class="loading-spinner">
             <div class="spinner-border spinner-border-sm" role="status"></div>
-            <span>جاري فحص السجلات الرقمية...</span>
+            <span class="ms-2">جاري البحث في قاعدة البيانات الرقمية...</span>
         </div>
     </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/fonts/FontLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/geometries/TextGeometry.js"></script>
+
 <script src="index.js"></script>
 
 <script>
-    const API_URL = '/api'; // تأكد أن هذا يطابق إعدادات Vercel
-
-    async function validateSearch() {
-        const patientID = document.getElementById('patientID').value;
-        const spinner = document.getElementById('loading-spinner');
-        const popup = document.getElementById('error-popup');
-
-        // 1. التحقق من الطول
-        if (patientID.length !== 14) {
-            showError("يجب إدخال الرقم القومي كاملاً (14 رقم).");
-            return;
+    // تشغيل البحث عند الضغط على Enter
+    document.getElementById('patientID').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            validateSearch();
         }
+    });
 
-        // 2. إظهار التحميل
-        spinner.style.display = 'block';
-
-        try {
-            // 3. محاولة جلب بيانات المريض من السيرفر
-            const response = await fetch(`${API_URL}/patients`);
-            const result = await response.json();
-
-            if (result.success) {
-                // البحث عن المريض المحدد في القائمة
-                const patient = result.data.find(p => p.nationalId === patientID);
-                
-                if (patient) {
-                    // إذا وجدناه، ننتقل لصفحة التفاصيل (أو نظهر مودال)
-                    // حالياً سنقوم بتخزينه في sessionStorage للانتقال
-                    sessionStorage.setItem('currentPatient', JSON.stringify(patient));
-                    window.location.href = 'admin.html'; // أو صفحة العرض المخصصة
-                } else {
-                    showError("عذراً، هذا الرقم غير مسجل في قاعدة البيانات.");
-                }
-            } else {
-                showError("حدث خطأ في الاتصال بقاعدة البيانات.");
-            }
-        } catch (error) {
-            console.error(error);
-            showError("فشل الاتصال بالسيرفر. تأكد من تشغيل Node.js");
-        } finally {
-            spinner.style.display = 'none';
-        }
-    }
-
-    function showError(msg) {
-        const popup = document.getElementById('error-popup');
-        document.getElementById('error-message').innerText = msg;
-        popup.style.display = 'block';
-        setTimeout(closeError, 4000);
-    }
-
+    // دالة إغلاق رسالة الخطأ يدوياً
     function closeError() {
         document.getElementById('error-popup').style.display = 'none';
     }
-
-    // البحث عند الضغط على Enter
-    document.getElementById('patientID').addEventListener('keypress', function (e) {
-        if (e.key === 'Enter') validateSearch();
-    });
-
-    // تأكد من أن ملف index.js يحتوي على renderer.domElement ويضيفه لـ #canvas-container
 </script>
 
 </body>
